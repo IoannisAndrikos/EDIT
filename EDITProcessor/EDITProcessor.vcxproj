@@ -143,7 +143,7 @@
     <ClInclude Include="EDITProcessor.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\Development\QCA reconstruction\QCAProcessor\AssemblyInfo.cpp" />
+    <ClCompile Include="AssemblyInfo.cpp" />
     <ClCompile Include="EDITProcessor.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
