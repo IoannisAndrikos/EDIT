@@ -33,6 +33,13 @@
 #include <vtk-9.0/vtkSmoothPolyDataFilter.h>
 #include <vtk-9.0/vtkPolyDataNormals.h>
 #include <vtk-9.0/vtkBooleanOperationPolyDataFilter.h>
+#include <vtk-9.0/vtkFillHolesFilter.h>
+#include <vtk-9.0/vtkPolyDataMapper.h>
+#include <vtk-9.0/vtksubdivisionFilter.h>
+#include <vtk-9.0/vtkAdaptiveSubdivisionFilter.h>
+#include <vtk-9.0/vtkLinearSubdivisionFilter.h>
+#include <vtk-9.0/vtkButterflySubdivisionFilter.h>
+#include <vtk-9.0/vtkLoopSubdivisionFilter.h>
 //---------------------------------------------------------------------
 
 
@@ -49,7 +56,7 @@ public:
 	enum STLType { BLADDER, SKIN, THICKNESS};
 
 	vtkSmartPointer<vtkPolyData> triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
-	vtkSmartPointer<vtkPolyData> surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type); //string path
+	vtkSmartPointer<vtkPolyData> surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type, vector<Point2f> firstContour, vector<Point2f> lastContour); //string path
 
 	void setStudyDir(string studyDir) {
 		this->studyDir = studyDir;
@@ -72,13 +79,13 @@ public:
 	double yspace;
 	double distanceBetweenFrames;
 	ofstream logFile;
-	
+	Point2f imageCenter;
 
 private:
 	//variable
 	string studyDir;
 	string outputObjectsDir;
-	string loggertxt;
+	string loggertxt;	
 
 	//functions
 	string getSTLName(STLType type);

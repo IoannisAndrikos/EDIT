@@ -126,7 +126,8 @@ namespace EDITProcessor {
 			 proc->xspace = Tags[0] * 10;
 			 proc->yspace = Tags[1] * 10;
 			 proc->distanceBetweenFrames = 0.203;
-
+			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
+			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
 			 string stydyDir = ultr->getStudyDir();
 			 proc->setStudyDir(stydyDir);
 			 if (this->isLoggerEnabled) proc->openLogger();

@@ -13,9 +13,14 @@ vtkSmartPointer<vtkPolyData> process_3D::triangulation(vector<vector<Point2f>> p
 	vtkSmartPointer<vtkPoints> points = vtkSmartPointer< vtkPoints >::New();
 	for (int i = 0; i < point_cloud.size(); i++) {
 		for (int j = 0; j < point_cloud[i].size(); j++) {
-			points->InsertNextPoint(point_cloud[i][j].x*this->xspace, point_cloud[i][j].y*this->yspace, i*this->distanceBetweenFrames);
+			points->InsertNextPoint((point_cloud[i][j].x-this->imageCenter.x)*this->xspace,
+									(point_cloud[i][j].y-this->imageCenter.y)*this->yspace, 
+									i*this->distanceBetweenFrames);
 		}
 	}
+
+	vector<Point2f> firstContour = point_cloud[0];
+	vector<Point2f> lastContour = point_cloud[point_cloud.size()-1];
 
 	vtkSmartPointer<vtkCellArray> triangles = vtkSmartPointer<vtkCellArray>::New();
 
@@ -37,9 +42,6 @@ vtkSmartPointer<vtkPolyData> process_3D::triangulation(vector<vector<Point2f>> p
 			triangle_1->GetPointIds()->SetId(0, i*k + j + ss);
 
 			triangles->InsertNextCell(triangle_1);
-
-
-
 
 			vtkSmartPointer<vtkTriangle> triangle_2 = vtkSmartPointer<vtkTriangle>::New();
 			triangle_2->GetPointIds()->SetId(0, i*k + j + ss);
@@ -64,28 +66,27 @@ vtkSmartPointer<vtkPolyData> process_3D::triangulation(vector<vector<Point2f>> p
 	trianglePolyData->SetPoints(points);
 	trianglePolyData->SetPolys(triangles);
 
+
 	// write the polydata to a file
+	/*string filename_stl = this->outputObjectsDir + "/no_smoothed_" + getSTLName(type) + ".stl";
+	vtkSmartPointer<vtkSTLWriter> writer = vtkSmartPointer<vtkSTLWriter>::New();
+	writer->SetFileName(filename_stl.c_str());
+	writer->SetInputData(trianglePolyData);
+	writer->Write();*/
 
-	//string filename_stl = this->outputObjectsDir + "/no_smoothed_" + getSTLName(type) + ".stl";
-
-	//vtkSmartPointer<vtkSTLWriter> writer = vtkSmartPointer<vtkSTLWriter>::New();
-
-
-	//writer->SetFileName(filename_stl.c_str());
-	//writer->SetInputData(trianglePolyData);
-	//writer->Write();
 
 	process_3D::LoggerMessage("Initial triangularion was produced successfully");
 
-	surface_smoothing(trianglePolyData, type);
+	
+	surface_smoothing(trianglePolyData, type, firstContour, lastContour);
 
 	return trianglePolyData;
 }
 
-vtkSmartPointer<vtkPolyData> process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type) {
+vtkSmartPointer<vtkPolyData> process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type, vector<Point2f> firstContour, vector<Point2f> lastContour) {
 
+	//smooth surface 
 	vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter = vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
-
 	smoothFilter->SetInputData(surface);
 	smoothFilter->SetNumberOfIterations(10); //15
 	smoothFilter->SetRelaxationFactor(0.3); //0.3
@@ -93,19 +94,38 @@ vtkSmartPointer<vtkPolyData> process_3D::surface_smoothing(vtkSmartPointer<vtkPo
 	smoothFilter->BoundarySmoothingOn();
 	smoothFilter->Update();
 
+	//close holes of surface
+	vtkSmartPointer<vtkFillHolesFilter> fillHolesFilter = vtkSmartPointer<vtkFillHolesFilter>::New();
+	fillHolesFilter->CAN_PRODUCE_SUB_EXTENT;
+	fillHolesFilter->SetHoleSize(10000); //1E6
+	fillHolesFilter->SetInputConnection(smoothFilter->GetOutputPort());
+	fillHolesFilter->Update();
+	/*vtkSmartPointer<vtkPolyDataMapper> filledMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+	filledMapper->SetInputData(fillHolesFilter->GetOutput());
+	filledMapper->Update();*/
+
 	// Update normals on newly smoothed polydata
 	vtkSmartPointer<vtkPolyDataNormals> normalGenerator = vtkSmartPointer<vtkPolyDataNormals>::New();
-	normalGenerator->SetInputConnection(smoothFilter->GetOutputPort());
+	normalGenerator->SetInputConnection(fillHolesFilter->GetOutputPort());
 	normalGenerator->ComputePointNormalsOn();
 	normalGenerator->ComputeCellNormalsOn();
 	normalGenerator->Update();
+
+	//remesh
+	vtkSmartPointer<vtkLinearSubdivisionFilter> subdivisionFilter = vtkSmartPointer<vtkLinearSubdivisionFilter>::New();
+	//dynamic_cast<vtkLinearSubdivisionFilter*> (subdivisionFilter.GetPointer())->SetNumberOfSubdivisions(2);
+	subdivisionFilter->SetInputData(normalGenerator->GetOutput());
+	subdivisionFilter->Update();
+
+
 
 	process_3D::LoggerMessage("Smoothed model of the surface was produced successfully");
 
 	string filename_stl = this->outputObjectsDir + "/smoothed_" + getSTLName(type) + ".stl";
 
+	
+	//write polydata to .stl file
 	vtkSmartPointer<vtkSTLWriter> writer = vtkSmartPointer<vtkSTLWriter>::New();
-
 	writer->SetFileName(filename_stl.c_str());
 	writer->SetInputConnection(normalGenerator->GetOutputPort());
 	writer->Write();
@@ -115,9 +135,9 @@ vtkSmartPointer<vtkPolyData> process_3D::surface_smoothing(vtkSmartPointer<vtkPo
 	vtkSmartPointer<vtkPoints> points = vtkSmartPointer< vtkPoints >::New();
 	vtkSmartPointer<vtkCellArray> triangles = vtkSmartPointer<vtkCellArray>::New();
 
-	//points->GetPoints();
 
 	smoothed_branch = normalGenerator->GetOutput();
+
 
 	return smoothed_branch;
 }
