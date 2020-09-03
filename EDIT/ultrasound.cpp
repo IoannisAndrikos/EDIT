@@ -117,8 +117,8 @@ void ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint) {
 		
 
 		//Morphological ACWE
-		if (i == initialFrame) { // i == initialFrame
-			//in the first image we apply circle levelset image and 200 repeats
+		if (i == this->initialFrame || i >=this->lastFrame-5) { // maybe 5 has to be configurable from gui
+			//in the first as well as in the final 5 frames we apply circle levelset image and 200 repeats
 			CImg<unsigned char> embedding = circle_levelset(imgC.height(), imgC.width(), { clickPoint.y , clickPoint.x }, this->levelsetSize);
 			morphsnakes::MorphACWE<double, 2> macwe(cimg2ndimage(embedding), cimg2ndimage(imgC), this->smoothing, this->lamda1, this->lamda2);
 			for (int i = 0; i < 200; ++i) {
@@ -162,6 +162,10 @@ void ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint) {
 		Point2f *lumenCenter = new Point2f();
 		Point *highestWhitePixel = new Point();
 		ResultOfProcess poitsWereFound = centerAndPointsOfContour(lumen, lumenPoints, lumenCenter, highestWhitePixel);
+		
+		//update the click point! This point is used for the segmentation of the final (almost 5) frames
+		clickPoint = { (int)lumenCenter->x, (int)lumenCenter->y };
+
 
 		if (poitsWereFound == ResultOfProcess::SUCCESS) {
 			//int pix = findDistanceLumenFromSkin(images[i], highestWhitePixel);
@@ -403,7 +407,7 @@ void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f
 		pp.push_back(Point2f(xnew.at<Float32>(i), ynew.at<Float32>(i)));
 	}
 
-	vector<Point2f> smothed = smoothCenterline(sortBasedEuclideanDistance(pp), 50); //num_spline = 50;
+	vector<Point2f> smothed = smoothCenterline(sortBasedEuclideanDistance(pp)); //num_spline = 50;
 
 	vector<Point2f> contour;
 
@@ -505,7 +509,7 @@ CImg<unsigned char> ultrasound::circle_levelset(int height, int width, const arr
 vector<vector<vector<double>>> ultrasound::sortBasedEuclideanDistance(vector<Point2f> points) {
 
 	vector<Point2f> sorted;
-	//keep pixel those have distance from (0,0) greated than 10. These was a problem due to ultrasound artifact
+	//keep pixel those have distance from (0,0) greated than 10. This was a problem due to ultrasound artifact
 	int count = 0;
 	while (sorted.size() < 3) {
 		if (sqrt(pow(points[count].x - 0, 2) + pow(points[count].y - 0, 2)) > 10) {
@@ -531,7 +535,7 @@ vector<vector<vector<double>>> ultrasound::sortBasedEuclideanDistance(vector<Poi
 		points[index] = { 256, 256 };
 	}
 
-	sorted.push_back(sorted[0]);
+	//sorted.push_back(sorted[0]);
 
 	vector<vector<vector<double>>> cl_3D;
 	vector<vector<double>> temp_cl_3D;
@@ -662,8 +666,14 @@ vector<Point2f> ultrasound::smoothCenterline(vector<vector<vector<double>>> cent
 			newdst[i] = sqrt(diff_x + diff_y + diff_z);
 		}
 		//cout << smoothed_distance << " ";
-
-		double planeDistance = ceil(smoothed_distance) / num_spline;//0.5; // sampling distance 54
+		double planeDistance;
+		if (num_spline == 0) {
+			 planeDistance = 13; // sampling distance 54
+		}
+		else {
+			 planeDistance = ceil(smoothed_distance) / num_spline; //ceil(smoothed_distance) / num_spline
+		}
+		//double planeDistance = ceil(smoothed_distance) / num_spline;//0.5; // sampling distance 54
 		//double planeDistance = ceil(dims[0] * 15 / 1024);
 
 		double interval = 0;

@@ -131,7 +131,7 @@ private:
 	CImg<unsigned char> *cvImgToCImg(Mat &cvImg);
 	Mat CImgtoCvImg(CImg<unsigned char> img);
 	void creatDirectories();
-	vector<Point2f> smoothCenterline(vector<vector<vector<double>>> centerline, int num_spline);
+	vector<Point2f> smoothCenterline(vector<vector<vector<double>>> centerline, int num_spline = 0);
 	CImg<unsigned char> circle_levelset(int height, int width, const array<int, 2>& center, double radius, double scalerow = 1.0);
 	vector<vector<vector<double>>> sortBasedEuclideanDistance(vector<Point2f> points);
 	ResultOfProcess centerAndPointsOfContour(Mat processed, vector<Point2f> *points, Point2f *center, Point *highestWhitePixel = &Point(0,0));

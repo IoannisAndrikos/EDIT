@@ -20,8 +20,8 @@ void initiatePoint(int event, int x, int y, int, void* imgptr) {
 int main(int argv, char* argc) {
 	string mainPath = "C:/Users/Legion Y540/Desktop/EDIT_STUDIES";
 
-	string dcmPath = "C:/Users/Legion Y540/Desktop/EDIT Data/US_R75_2020-06-23-14-43-54.dcm";
-	string outputPath = "C:/Users/Legion Y540/Desktop/trial";
+	string dcmPath = "C:/Users/Legion Y540/Desktop/EDIT Data/month 0/US_R75_2020-06-23-14-43-54.dcm";
+	//string outputPath = "C:/Users/Legion Y540/Desktop/trial";
 
 	//ultrasound *ultr = new ultrasound(dcmPath, outputPath);
 	ultrasound *ultr = new ultrasound();
@@ -39,15 +39,15 @@ int main(int argv, char* argc) {
 
 
 
-	int iniFrame = 14;
-	int lastFrame = 75;
+	int iniFrame = 1;
+	int lastFrame = 10;
 
 
 	ultr->repeats = 20;
 	ultr->smoothing = 3;
 	ultr->lamda1 = 1;
 	ultr->lamda2 = 1;
-	ultr->levelsetSize = 10;
+	ultr->levelsetSize = 40;
 	ultr->applyEqualizeHist = false;
 
 	Mat inputforPoint = images[iniFrame];
@@ -121,8 +121,8 @@ int main(int argv, char* argc) {
 	cout << skinPoints[0].size() << endl;
 
 
-	proc->triangulation(skinPoints, process_3D::STLType::SKIN);
+	//proc->triangulation(skinPoints, process_3D::STLType::SKIN);
 
-	ultr->writePointsAndImages();
-
+	//ultr->writePointsAndImages();
+	
 }
