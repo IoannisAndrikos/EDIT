@@ -228,6 +228,7 @@ void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
 			smothed[j].y = smothed[j].y + center.y;
 		}
 		this->lumenPoints.push_back(smothed);
+	
 
 		xpts.release();
 		ypts.release();
@@ -240,6 +241,17 @@ void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
 		vector<Point2f>().swap(smothed);
 	}
 }
+
+double ultrasound::calculateLumenArea(vector<Point2f> points) {
+	for each (Point2f point in points)
+	{
+		point.x *= this->tags[0] * 10;
+		point.y *= this->tags[1] * 10;
+	}
+
+	return contourArea(points);			
+}
+
 
 
 void ultrasound::extractSkinPoints() {
@@ -303,7 +315,7 @@ void ultrasound::extractSkinPoints() {
 
 	int dist = skinPoints[i][index].y + center.y - distBladderSkin;
 
-	cout << dist << endl;
+	//cout << dist << endl;
 
 	for (int j = 0; j < SkinPolarXY.size(); j++) {
 		SkinPolarXY[j].x += dist;
@@ -316,7 +328,7 @@ void ultrasound::extractSkinPoints() {
 	vector<Point2f> pp;
 
 
-	cout << SkinPolarXY.size() << endl;
+	//cout << SkinPolarXY.size() << endl;
 
 	for (int j = 0; j < SkinPolarXY.size(); j++) {
 		pp.push_back(Point2f(xnew.at<Float32>(j) + center.x, ynew.at<Float32>(j) + center.y));
@@ -535,7 +547,7 @@ vector<vector<vector<double>>> ultrasound::sortBasedEuclideanDistance(vector<Poi
 		points[index] = { 256, 256 };
 	}
 
-	//sorted.push_back(sorted[0]);
+	sorted.push_back(sorted[0]);
 
 	vector<vector<vector<double>>> cl_3D;
 	vector<vector<double>> temp_cl_3D;
@@ -693,6 +705,9 @@ vector<Point2f> ultrasound::smoothCenterline(vector<vector<vector<double>>> cent
 			equidistantPoints.push_back(point);
 		}
 		smoothCtr.push_back(equidistantPoints); // store interpolated centerline
+
+		vector<vector<double>>().swap(equidistantPoints);
+		vector<int>().swap(ind);
 	}
 
 

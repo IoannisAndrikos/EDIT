@@ -108,6 +108,10 @@ public:
 		return skinPoints;
 	}
 
+	vector<double> getLumenArea() {
+		return lumenArea;
+	}
+
 	void clearLumenAndSkinPoints() {
 		vector<vector<Point2f>>().swap(this->lumenPoints);
 		vector<vector<Point2f>>().swap(this->skinPoints);
@@ -137,6 +141,7 @@ private:
 	ResultOfProcess centerAndPointsOfContour(Mat processed, vector<Point2f> *points, Point2f *center, Point *highestWhitePixel = &Point(0,0));
 	void sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f *center, Mat image, int skinDistance);
 	int findLongestVector(vector<vector<Point>> vec);
+	double calculateLumenArea(vector<Point2f> points);
 
 
 	void LoggerMessage(string message) {
@@ -158,6 +163,7 @@ private:
 	int lastFrame;
 	vector<vector<Point2f>> lumenPoints;
 	vector<vector<Point2f>> skinPoints;
+	vector<double> lumenArea;
 	CImg<unsigned char> levelsetImage;
 
 	string loggertxt;

@@ -104,6 +104,7 @@ namespace EDITProcessor {
 			 ultr->applyEqualizeHist = applyEqualizeHist;
 		 }
 
+		 //export images
 		 System::String ^exportImages(System::String ^dicomFile, bool isLoggerEnabled) {
 			 this->isLoggerEnabled = isLoggerEnabled;
 			string Dicom_file = msclr::interop::marshal_as<std::string>(dicomFile);
@@ -113,13 +114,23 @@ namespace EDITProcessor {
 			return msclr::interop::marshal_as<System::String ^>(outputimagesDir);
 		}
 
+
+		 List<double> ^getPixelSpacing() {
+			 vector<double> tags = ultr->getTags();
+			 List<double>^ pixelSpacing = gcnew List<double>();
+			 pixelSpacing->Add(tags[0]*10);
+			 pixelSpacing->Add(tags[1]*10);
+			 return pixelSpacing;
+		 }
+
+		 //extract bladder
 		 List<List<EDITCore::CVPoint^>^> ^extractBladder(int startingFrame, int endingFrame, EDITCore::CVPoint ^userPoint) {
 			ultr->processing(startingFrame, endingFrame, cv::Point(round(userPoint->GetX()), round(userPoint->GetY())));
 			vector<vector<Point2f>> lumenPoints = ultr->getlumenPoints();
 			return vectorPointsTOListPoints(lumenPoints);
 		 }
 
-
+		 //extract STL
 		 void extractBladderSTL(List<List<EDITCore::CVPoint^>^> ^bladderPoints) {
 
 			 vector<double> Tags = ultr->getTags();
@@ -151,6 +162,19 @@ namespace EDITProcessor {
 
 		 void repeatSegmentation() {
 			 ultr->clearLumenAndSkinPoints();
+		 }
+
+
+		 List<double>^ getLumenMetrics() {
+			 vector<double> lumenVectorArea = ultr->getLumenArea();
+			 List<double>^ lumenListArea;
+			 for each (double area in lumenVectorArea)
+			 {
+				 lumenListArea->Add(area);
+			 }
+			 vector<double>().swap(lumenVectorArea);
+
+			 return lumenListArea;
 		 }
 
 	};
