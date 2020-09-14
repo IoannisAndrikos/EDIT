@@ -389,7 +389,7 @@ vector<Mat> CDicomReader::dcmimage_Mat(const wchar_t * inor, String outputDir, d
 		{
 			di->setMinMaxWindow(0);
 			cv::Mat cvimage(int(di->getHeight()), int(di->getWidth()), CV_MAKETYPE(di->getDepth(), 3), (Uint8*)di->getOutputData(di->getDepth(), frame, 0));
-			cvtColor(cvimage, cvimage, COLOR_BGR2GRAY); //COLOR_BGR2RGB COLOR_BGR2GRAY
+			cvtColor(cvimage, cvimage, COLOR_BGR2RGB); //COLOR_BGR2RGB COLOR_BGR2GRAY
 
 			//some cropping
 
@@ -400,7 +400,10 @@ vector<Mat> CDicomReader::dcmimage_Mat(const wchar_t * inor, String outputDir, d
 			imwrite(pathbmp, cvimage);
 			//imwrite
 
+			cvtColor(cvimage, cvimage, cv::COLOR_RGB2GRAY);
 			images.push_back(cvimage);
+
+			cvimage.release();
 		}
 
 	}
