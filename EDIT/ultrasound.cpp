@@ -364,7 +364,7 @@ void ultrasound::extractSkinPoints() {
 void ultrasound::writePointsAndImages() {
 	Mat img;
 	for (int i = 0; i <= (this->lastFrame - this->initialFrame); i++) {
-		String lumenhtxt = this->outputPointsDir + "/" + to_string(i) + ".txt";
+		String lumenhtxt = this->outputPointsDir + "/" + to_string(i + this->initialFrame) + ".txt";
 		ofstream filelumen;
 		filelumen.open(lumenhtxt);
 		img = this->images[i + this->initialFrame];
