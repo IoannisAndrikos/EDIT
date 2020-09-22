@@ -39,6 +39,9 @@
     <ClCompile Include="process_3D.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="photoAcoustic.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CImg.h">
@@ -72,6 +75,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="process_3D.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="photoAcoustic.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

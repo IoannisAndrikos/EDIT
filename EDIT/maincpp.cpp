@@ -1,5 +1,6 @@
 #include "ultrasound.h"
 #include "process_3D.h"
+#include "photoAcoustic.h"
 
 #include <direct.h>
 
@@ -20,7 +21,7 @@ void initiatePoint(int event, int x, int y, int, void* imgptr) {
 int main(int argv, char* argc) {
 	string mainPath = "C:/Users/Legion Y540/Desktop/EDIT_STUDIES";
 
-	string dcmPath = "C:/Users/Legion Y540/Desktop/EDIT Data/month 0/US_R75_2020-06-23-14-43-54.dcm";
+	string dcmPath = "C:/Users/Legion Y540/Desktop/EDIT Data/month 0/R73/R73_US.dcm";
 	//string outputPath = "C:/Users/Legion Y540/Desktop/trial";
 
 	//ultrasound *ultr = new ultrasound(dcmPath, outputPath);
@@ -39,8 +40,8 @@ int main(int argv, char* argc) {
 
 
 
-	int iniFrame = 1;
-	int lastFrame = 10;
+	int iniFrame = 53;
+	int lastFrame = 70;
 
 
 	ultr->repeats = 20;
@@ -98,7 +99,7 @@ int main(int argv, char* argc) {
 	//}
 	//0.203
 
-	process_3D *proc = new process_3D();
+	/*process_3D *proc = new process_3D();
 
 
 	
@@ -116,9 +117,20 @@ int main(int argv, char* argc) {
 	ultr->extractSkinPoints();
 
 	vector<vector<Point2f>> skinPoints = ultr->getSkinPoints();
-
 	cout << skinPoints.size() << endl;
-	cout << skinPoints[0].size() << endl;
+	cout << skinPoints[0].size() << endl;*/
+
+
+	photoAcoustic* photo = new photoAcoustic();
+	photo->setMainOutputDirectory(mainPath);
+	photo->exportImages("C:/Users/Legion Y540/Desktop/EDIT Data/month 0/R73/R73_OXY.dcm");
+
+
+
+	photo->setInitialFrame(ultr->getInitialFrame());
+	photo->setLastFrame(ultr->getLastFrame());
+	photo->setlumenPoints(ultr->getlumenPoints());
+	photo->thicknessExtraction();
 
 
 	//proc->triangulation(skinPoints, process_3D::STLType::SKIN);

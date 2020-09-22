@@ -309,7 +309,7 @@ vector<Mat> CDicomReader::dcmimage_Mat(const wchar_t * inor, double xmin, double
 }
 
 //third one 
-vector<Mat> CDicomReader::dcmimage_Mat(const wchar_t * inor, String outputDir, double xmin, double xmax, double ymin, double ymax)
+vector<Mat> CDicomReader::dcmimage_Mat(const wchar_t * inor, String outputDir, double xmin, double xmax, double ymin, double ymax, ImageChannel channel)
 {
 
 	E_FileReadMode      opt_readMode = ERM_autoDetect;    /* default: fileformat or dataset */
@@ -398,11 +398,27 @@ vector<Mat> CDicomReader::dcmimage_Mat(const wchar_t * inor, String outputDir, d
 			cvimage = cvimage(Rect(round(xmin), round(ymin), x, y));
 			String pathbmp = outputDir + "/" + to_string(frame) + ".bmp";
 			imwrite(pathbmp, cvimage);
-			//imwrite
-
-			cvtColor(cvimage, cvimage, cv::COLOR_RGB2GRAY);
-			images.push_back(cvimage);
-
+			
+			switch (channel)
+			{
+			case CDicomReader::GRAYSCALE:
+				cvtColor(cvimage, cvimage, cv::COLOR_RGB2GRAY);
+				images.push_back(cvimage);
+				break;
+			case CDicomReader::RED:
+				Mat planes[3];
+				split(cvimage, planes);
+				images.push_back(planes[2]);
+				planes->release();
+				break;
+			/*case CDicomReader::GREEN:
+				break;
+			case CDicomReader::BLUE:
+				break;
+			default:
+				break;*/
+			}
+			
 			cvimage.release();
 		}
 

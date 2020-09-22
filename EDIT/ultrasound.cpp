@@ -221,7 +221,7 @@ void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
 		for (int j = 0; j<points[i].size(); j++) {
 			pp.push_back(Point2f(xnew.at<Float32>(j), ynew.at<Float32>(j)));
 		}
-		vector<Point2f> smothed = smoothCenterline(sortBasedEuclideanDistance(pp), 100); //num_spline = 100
+		vector<Point2f> smothed = smoothCurve(sortBasedEuclideanDistance(pp), 100); //num_spline = 100
 
 		for (int j = 0; j < smothed.size(); j++) { //p.size()
 			smothed[j].x = smothed[j].x + center.x;
@@ -419,7 +419,7 @@ void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f
 		pp.push_back(Point2f(xnew.at<Float32>(i), ynew.at<Float32>(i)));
 	}
 
-	vector<Point2f> smothed = smoothCenterline(sortBasedEuclideanDistance(pp)); //num_spline = 50;
+	vector<Point2f> smothed = smoothCurve(sortBasedEuclideanDistance(pp)); //num_spline = 50;
 
 	vector<Point2f> contour;
 
@@ -586,7 +586,7 @@ int ultrasound::findLongestVector(vector<vector<Point>> vec) {
 
 
 // Cubic spline interpolation to smooth centerline
-vector<Point2f> ultrasound::smoothCenterline(vector<vector<vector<double>>> centerline, int num_spline) { //vector<vector<double>>
+vector<Point2f> ultrasound::smoothCurve(vector<vector<vector<double>>> centerline, int num_spline) { //vector<vector<double>>
 	vector<vector<vector<double>>> smoothCtr;
 	for (int ii = 0; ii < centerline.size(); ++ii) {
 		// Read centerline into vtk points

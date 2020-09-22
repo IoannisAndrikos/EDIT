@@ -8,6 +8,7 @@
 //
 #include "../EDIT/ultrasound.h"
 #include "../EDIT/process_3D.h"
+#include "../EDIT/photoAcoustic.h"
 //
 #include <vtk-9.0/vtkSmartPointer.h>
 #include <vtk-9.0/vtkPolyData.h>
@@ -38,6 +39,7 @@ namespace EDITProcessor {
 		//----OBJECTS----
 		ultrasound *ultr;
 		process_3D *proc;
+		photoAcoustic *photo;
 		//----OBJECTS-----
 		 
 		//-----variables-----
@@ -81,17 +83,19 @@ namespace EDITProcessor {
 	public:
 		Processor() {
 			ultr = new ultrasound();
+			photo = new photoAcoustic();
 			proc = new process_3D();
 		}
 
 		~Processor() {
 		}
 
-		
+		//------------------------------- U L T R A S O U N D - P A R T ----------------------------------
 
 		 void setExaminationsDirectory(System::String ^examDir) {
 			string exam_dir = msclr::interop::marshal_as<std::string>(examDir);
 			ultr->setMainOutputDirectory(exam_dir);
+			photo->setMainOutputDirectory(exam_dir);
 		}
 
 
@@ -175,6 +179,36 @@ namespace EDITProcessor {
 			 vector<double>().swap(lumenVectorArea);
 
 			 return lumenListArea;
+		 }
+
+
+		 // ------------------------------ P H O T O A C O U S T I C - P A R T ----------------------------------
+
+		  //export photaccoustic images
+		 System::String^ exportPhotoAcousticImages(System::String^ dicomFile, bool isLoggerEnabled) {
+			 this->isLoggerEnabled = isLoggerEnabled;
+			 string Dicom_file = msclr::interop::marshal_as<std::string>(dicomFile);
+			 photo->exportImages(Dicom_file); // 1
+			 if (this->isLoggerEnabled) photo->openLogger(); //2
+			 string outputimagesDir = photo->getOutputImagesDir();
+			 return msclr::interop::marshal_as<System::String^>(outputimagesDir);
+		 }
+
+		 List<List<EDITCore::CVPoint^>^> ^extractThickness(List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
+			 ultr->finalizePoints(listPointsToVectorPoints(bladderPoints));
+			 photo->setInitialFrame(ultr->getInitialFrame());
+			 photo->setLastFrame(ultr->getLastFrame());
+			 photo->setlumenPoints(ultr->getlumenPoints());
+			 photo->thicknessExtraction();
+
+
+			 vector<vector<Point2f>> thicknessPoints = photo->getThicknessPoints();
+			 return vectorPointsTOListPoints(thicknessPoints);
+		 }
+
+
+		void writeThicknessPoints() {
+			 photo->writeThicknessPoints();
 		 }
 
 	};

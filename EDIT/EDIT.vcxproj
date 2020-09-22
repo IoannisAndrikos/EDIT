@@ -168,6 +168,7 @@
     <ClCompile Include="DicomReader.cpp" />
     <ClCompile Include="EDIT.cpp" />
     <ClCompile Include="maincpp.cpp" />
+    <ClCompile Include="photoAcoustic.cpp" />
     <ClCompile Include="process_3D.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="ultrasound.cpp" />
@@ -179,6 +180,7 @@
     <ClInclude Include="morphsnakes.h" />
     <ClInclude Include="narrowband.h" />
     <ClInclude Include="ndimage.h" />
+    <ClInclude Include="photoAcoustic.h" />
     <ClInclude Include="process_3D.h" />
     <ClInclude Include="spline.h" />
     <ClInclude Include="stdafx.h" />

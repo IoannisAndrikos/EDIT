@@ -1,5 +1,5 @@
-#ifndef ULTRASOUND_H
-#define ULTRASOUND_H
+#ifndef PHOTOACOUSTIC_H
+#define PHOTOACOUSTIC_H
 
 #pragma once
 
@@ -14,9 +14,6 @@
 #include <codecvt>
 #include <experimental/filesystem>
 #include "DicomReader.h"
-#include "CImg.h"
-#include "spline.h"
-
 
 
 #include <opencv2/core/core.hpp>
@@ -34,26 +31,17 @@
 #include "vtk-9.0/vtkDoubleArray.h"
 //---------------------------------------------------------------------
 
-
 using namespace std;
 using namespace cv;
-using namespace cimg_library;
-using namespace tk;
 
-
-class ultrasound {
+class photoAcoustic {
 public:
-	ultrasound(); //constructor
-	ultrasound(string dicomPath, string outputPath);
-	~ultrasound(); //destructor
+	photoAcoustic(); //constructor
+	~photoAcoustic(); //destructor
 
 	void exportImages(string dicomPath);
-
-	void processing(int initialFrame, int lastFrame, cv::Point clickPoint); //cropping and filtering //vector<vector<Point2f>>
-	void finalizePoints(vector<vector<Point2f>> p);
-	void extractSkinPoints();
-	void writePointsAndImages();
-
+	void thicknessExtraction();
+	void writeThicknessPoints();
 
 	void setMainOutputDirectory(string mainOutputDirectory) {
 		this->mainOutputDirectory = mainOutputDirectory;
@@ -92,7 +80,7 @@ public:
 	}
 
 	void openLogger() {
-		this->loggertxt = this->studyDir + "/ultrasound_logger.txt";
+		this->loggertxt = this->studyDir + "/photoAcoustic_logger.txt";
 		this->logFile.open(this->loggertxt);
 	}
 
@@ -100,57 +88,41 @@ public:
 		this->logFile.close();
 	}
 
-	int getInitialFrame() {
-		return initialFrame;
+	vector<vector<Point2f>> getThicknessPoints() {
+		return thicknessPoints;
 	}
 
-	int getLastFrame() {
-		return lastFrame;
+	//------------------------------------------THESE SHOULD BE GIVEN BY ULTRASOUND PART---------------------------
+	void setInitialFrame(int initialFrame){
+		this->initialFrame = initialFrame;
 	}
 
-	vector<vector<Point2f>> getlumenPoints() {
-		return lumenPoints;
+	void setLastFrame(int lastFrame) {
+		this->lastFrame = lastFrame;
 	}
 
-	vector<vector<Point2f>> getSkinPoints() {
-		return skinPoints;
+	void setlumenPoints(vector<vector<Point2f>> lumenPoints) {
+		this->lumenPoints = lumenPoints;
 	}
+	//-------------------------------------------------------------------------------------------------------------
 
-	vector<double> getLumenArea() {
-		return lumenArea;
-	}
-
-	void clearLumenAndSkinPoints() {
-		vector<vector<Point2f>>().swap(this->lumenPoints);
-		vector<vector<Point2f>>().swap(this->skinPoints);
+	void clearThicknessPoints() {
+		vector<vector<Point2f>>().swap(this->thicknessPoints);
 		LoggerMessage("The Segmentation process was repeated");
 	}
 
 
 	//variables
-	int repeats = 20;
-	double smoothing = 3;
-	double lamda1 = 1.0;
-	double lamda2 = 1.0;
-	int levelsetSize = 40;
-	boolean applyEqualizeHist = false;
-	boolean enableLogging = true;
+	bool enableLogging = true;
 	ofstream logFile;
-	
+
 private:
 	//functions
 	enum ResultOfProcess { SUCCESS, FAILURE };
-	CImg<unsigned char> *cvImgToCImg(Mat &cvImg);
-	Mat CImgtoCvImg(CImg<unsigned char> img);
 	void creatDirectories();
+	vector<Point2f> smoothContour(vector<Point2f> contour, int num_spline = 0);
 	vector<Point2f> smoothCurve(vector<vector<vector<double>>> centerline, int num_spline = 0);
-	CImg<unsigned char> circle_levelset(int height, int width, const array<int, 2>& center, double radius, double scalerow = 1.0);
-	vector<vector<vector<double>>> sortBasedEuclideanDistance(vector<Point2f> points);
-	ResultOfProcess centerAndPointsOfContour(Mat processed, vector<Point2f> *points, Point2f *center, cv::Point *highestWhitePixel = &cv::Point(0,0));
-	void sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f *center, Mat image, int skinDistance);
-	int findLongestVector(vector<vector<cv::Point>> vec);
-	double calculateLumenArea(vector<Point2f> points);
-
+	Point2f findCenterOfContour(vector<Point2f> contour);
 
 	void LoggerMessage(string message) {
 		if (this->logFile.is_open()) this->logFile << " --> " << message << endl;
@@ -169,14 +141,12 @@ private:
 	vector<double> tags;
 	int initialFrame;
 	int lastFrame;
+	vector<vector<Point2f>> thicknessPoints;
 	vector<vector<Point2f>> lumenPoints;
-	vector<vector<Point2f>> skinPoints;
-	vector<double> lumenArea;
-	CImg<unsigned char> levelsetImage;
-
 	string loggertxt;
-
 
 };
 
-#endif 
+
+
+#endif

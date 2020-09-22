@@ -47,16 +47,17 @@ class CDicomReader
 public:
 	CDicomReader(void);
 	~CDicomReader(void);
+	enum  ImageChannel { GRAYSCALE, RED, GREEN, BLUE };
 	CDicomInfo GetDicomInfoD(const wchar_t * inor1, const wchar_t * inor2);
 	vector<double> GetDicomInfo(const wchar_t * inor);
 	void dcmimage_bmp(const wchar_t * inor, const wchar_t * outor);
 	vector<Mat> dcmimage_Mat(const wchar_t * inor, double xmin, double xmax, double ymin, double ymax);
-	vector<Mat> dcmimage_Mat(const wchar_t * inor, String outputDir, double xmin, double xmax, double ymin, double ymax);
+	vector<Mat> dcmimage_Mat(const wchar_t * inor, String outputDir, double xmin, double xmax, double ymin, double ymax, ImageChannel channel = ImageChannel::GRAYSCALE);
 	int GetInstanceNumber(const wchar_t * inor);
 	void hu_conversion(const wchar_t * inor, const wchar_t * outor);
 	void DecompressImage(const wchar_t * inor);
 	int GetTransferSyntax(const wchar_t * inor);
-
+	
 private:
 
 
