@@ -49,212 +49,238 @@ void photoAcoustic::exportImages(string dicomPath) {
 	reader->~CDicomReader();
 }
 
-void photoAcoustic::thicknessExtraction() {
-	
+void photoAcoustic::thicknessExtraction(int frame) {
+	if (frame == 0) {
+		for (int k = this->initialFrame; k <= this->lastFrame; k++) {
+			process(k, totalSequenceOrCorrecton::TOTAL);
+		}
+	}
+	else {
+		process(frame, totalSequenceOrCorrecton::CORRECTION);
+	}
+}
+
+
+void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
+
 	//----------------------CONFIGURATIONS GIVEN BY USER------------------
 	double maxThickness = 0.8;
 	double minThickness = 0.2;
 	double minDegree = 180.0;
 	double maxDegree = 360.0;
 	int pixelDistance = 30;
-
 	//--------------------------------------------------------------------
 
 	double xspace = tags[0] * 10;
 	double yspace = tags[1] * 10;
+
+	Mat OXYImage, edge_OXY, red_PA;
+	OXYImage = this->images[frame];
+	bilateralFilter(OXYImage, red_PA, 9, 75, 75);
+	//threshold(red_PA, red_PA, 100, 255, THRESH_BINARY);
+	Canny(red_PA, edge_OXY, 90, 270, 3);
+
+	//cout << "---------------------------------> " << frame - this->initialFrame << endl;
+	//cout << this->lumenPoints.size() << endl;
+
+
+	vector<Point2f> bladder = this->lumenPoints[frame - this->initialFrame]; //--------------------------->??????
+	if (type == totalSequenceOrCorrecton::TOTAL) {
+		bladder = this->lumenPoints[frame - this->initialFrame];
+	}
+	else {
+		interpolatePointsOfContourIsGoingToBeFixed();
+		bladder = this->contourForFix;
+		vector<Point2f>().swap(this->contourForFix);
+	}
+
+	Point2f center = findCenterOfContour(bladder);
+
+	//shift bladder points to (0,0)
+	for (int i = 0; i < bladder.size(); i++) {
+		bladder[i].x -= center.x;
+		bladder[i].y -= center.y;
+	}
+
+	//convert to polar
+	Mat xpts(bladder.size(), 1, CV_32F, &bladder[0].x, 2 * sizeof(float));
+	Mat ypts(bladder.size(), 1, CV_32F, &bladder[0].y, 2 * sizeof(float));
+	Mat magnitude, angle;
+	cartToPolar(xpts, ypts, magnitude, angle);
+	vector<Point2f> polarXY_outer, outer_mean;
+
+	vector<double> thickness(bladder.size());
+	fill(thickness.begin(), thickness.end(), 1.0); //initialize all thickness values with 1.0
+
+	for (int j = 0; j < bladder.size(); j++) {
+		double degree = 180 * angle.at<float>(j) / CV_PI;
+		if (degree < minDegree || degree > maxDegree) {
+			thickness[j] = 0.0;
+		}
+		polarXY_outer.push_back(Point2f(magnitude.at<float>(j) + pixelDistance, angle.at<float>(j)));
+		outer_mean.push_back(Point2f(magnitude.at<float>(j), angle.at<float>(j)));
+	}
+
+	Mat mag(polarXY_outer.size(), 1, CV_32F, &polarXY_outer[0].x, 2 * sizeof(float));
+	Mat ang(polarXY_outer.size(), 1, CV_32F, &polarXY_outer[0].y, 2 * sizeof(float));
+	Mat xnew, ynew;
+	polarToCart(mag, ang, xnew, ynew);
+	vector<Point> expantedBladder;
+
+	for (int j = 0; j < polarXY_outer.size(); j++) {
+		expantedBladder.push_back(Point(xnew.at<float>(j) + center.x, ynew.at<float>(j) + center.y));
+		bladder[j].x += center.x;
+		bladder[j].y += center.y;
+	}
+
+	//-----------------------ALGORITHM----------------------
+
+	vector<Point2f> thicknessPoints(thickness.size());
+	fill(thicknessPoints.begin(), thicknessPoints.end(), Point2f(0.0, 0.0));
+	vector<double> distances(thickness.size());
+	fill(distances.begin(), distances.end(), 0);
+
+	int count = 0;
+	double meanDistance = 0;
+
+	for (int i = 0; i < thickness.size(); i++) { 
+
+		if (thickness[i] > 0.0) {
+			LineIterator it(edge_OXY, bladder[i], expantedBladder[i], 8, false);
+			LineIterator itBil(red_PA, bladder[i], expantedBladder[i], 8, false);
+
+
+			vector<Point2f> potencialPositions;
+			vector<int> potencialPositionsBasedOnIntesityCount;
+			vector<int> potencialPositionsBasedOnPixelCount;
+			vector<Point2f> coordinates(it.count);
+
+			int intensityCount = 0;
+			int countPixel = 0;
+			for (int j = 0; j < it.count; j++) 
+			{
+				Vec3b intensity = Vec3b(*it);
+				Vec3b intensityBil = Vec3b(*itBil);
+				if ((int)intensity.val[1] > 0) {
+					double dist = sqrt(pow(countPixel * xspace, 2) + pow(countPixel * yspace, 2));
+					if (dist > maxThickness) {
+						//cout << "greated than maxThickness" << endl;
+						break;
+					}
+					if (dist > minThickness) { //&& countPixel > 15
+						potencialPositions.push_back(it.pos());
+						potencialPositionsBasedOnIntesityCount.push_back(intensityCount);
+						potencialPositionsBasedOnPixelCount.push_back(countPixel);
+					}
+				}
+				if ((int)intensityBil.val[1] < 10) {
+					intensityCount = 0;
+				}
+				intensityCount += (int)intensityBil.val[1];
+			//	cout << (int)intensityBil.val[1] << endl;
+				it++;
+				itBil++;
+				countPixel++;
+			}
+
+
+			if (!potencialPositionsBasedOnIntesityCount.empty()) {
+				int IndexOfmax_1 = max_element(potencialPositionsBasedOnIntesityCount.begin(), potencialPositionsBasedOnIntesityCount.end()) - potencialPositionsBasedOnIntesityCount.begin();
+
+				Point winner = potencialPositions[IndexOfmax_1];
+				thicknessPoints[i] = winner;
+				double distance = potencialPositionsBasedOnPixelCount[IndexOfmax_1];//sqrt(pow(winner.x - bladder[i].x, 2) + pow(winner.y - bladder[i].y, 2));
+
+				distances[i] = distance;
+				count++;
+				//cout << "---->Distance: " << distance << endl;
+				meanDistance += distance;
+
+			}
+	
+			//line(PA_initial, bladder_updated[i], expantedBladder[i], Scalar(255, 255, 255), 1);
+		}
+
+
+	}
+
+	meanDistance /= count;
+
+	int countNew = 0;
+	int newMeanDistance = 0;
+	for (int j = 0; j < thicknessPoints.size(); j++) {
+		if (distances[j] > 0.7 * meanDistance && distances[j] < 1.3 * meanDistance) {
+
+			//cout << "point: " << j << ":  " << distances[j] << endl;
+			newMeanDistance += meanDistance;
+			countNew++;
+		}
+		else {
+			thicknessPoints[j] = Point2f(0.0, 0.0);
+		}
+	}
+	newMeanDistance /= countNew;
+
+
+	//---------------------------MEAN TICKNESS-------------------
+	for (int i = 0; i < outer_mean.size(); i++) {
+		outer_mean[i].x += round(newMeanDistance);
+	}
+	Mat magT(outer_mean.size(), 1, CV_32F, &outer_mean[0].x, 2 * sizeof(float));
+	Mat angT(outer_mean.size(), 1, CV_32F, &outer_mean[0].y, 2 * sizeof(float));
+	Mat xnewT, ynewT;
+
+	vector<Point2f> meanThickness;
+	polarToCart(magT, angT, xnewT, ynewT);
+	for (int j = 0; j < polarXY_outer.size(); j++) {
+		meanThickness.push_back(Point2f(xnewT.at<float>(j) + center.x, ynewT.at<float>(j) + center.y));
+	}
+	//-----------------------------------------------------------
+
+	double meanThick = sqrt(pow(meanDistance * xspace, 2) + pow(meanDistance * yspace, 2));
+	
+	if (type == totalSequenceOrCorrecton::TOTAL) {
+		this->meanThickness.push_back(meanThick);
+	}
+	else {
+		this->meanThickness[frame - this->initialFrame] = meanThick;
+	}
 	
 
-	for (int k = this->initialFrame; k <= this->lastFrame; k++) {
-		Mat OXYImage, edge_OXY, red_PA;
-		OXYImage = this->images[k];
-		bilateralFilter(OXYImage, red_PA, 9, 75, 75);
-		//threshold(red_PA, red_PA, 100, 255, THRESH_BINARY);
-		Canny(red_PA, edge_OXY, 90, 270, 3);
-
-		cout << "---------------------------------> " << k - this->initialFrame << endl;
-		cout << this->lumenPoints.size() << endl;
-		
-
-		vector<Point2f> bladder = this->lumenPoints[k - this->initialFrame]; //--------------------------->??????
-
-		cout << "oookkkk" << endl;
-
-		Point2f center = findCenterOfContour(bladder);
-		
-		//shift bladder points to (0,0)
-		for (int i = 0; i < bladder.size(); i++) {
-			bladder[i].x -= center.x;
-			bladder[i].y -= center.y;
+	for (int j = 0; j < thicknessPoints.size(); j++) {
+		if (thicknessPoints[j] == Point2f(0.0, 0.0)) {
+			thicknessPoints[j] = meanThickness[j];
 		}
-
-		//convert to polar
-		Mat xpts(bladder.size(), 1, CV_32F, &bladder[0].x, 2 * sizeof(float));
-		Mat ypts(bladder.size(), 1, CV_32F, &bladder[0].y, 2 * sizeof(float));
-		Mat magnitude, angle;
-		cartToPolar(xpts, ypts, magnitude, angle);
-		vector<Point2f> polarXY_outer, outer_mean;
-
-		vector<double> thickness(bladder.size());
-		fill(thickness.begin(), thickness.end(), 1.0); //initialize all thickness values with 1.0
-
-		for (int j = 0; j < bladder.size(); j++) {
-			double degree = 180 * angle.at<float>(j) / CV_PI;
-			if (degree < minDegree || degree > maxDegree) {
-				thickness[j] = 0.0;
-			}
-			polarXY_outer.push_back(Point2f(magnitude.at<float>(j) + pixelDistance, angle.at<float>(j)));
-			outer_mean.push_back(Point2f(magnitude.at<float>(j), angle.at<float>(j)));
-		}
-
-		Mat mag(polarXY_outer.size(), 1, CV_32F, &polarXY_outer[0].x, 2 * sizeof(float));
-		Mat ang(polarXY_outer.size(), 1, CV_32F, &polarXY_outer[0].y, 2 * sizeof(float));
-		Mat xnew, ynew;
-		polarToCart(mag, ang, xnew, ynew);
-		vector<Point> expantedBladder;
-
-		for (int j = 0; j < polarXY_outer.size(); j++) {
-			expantedBladder.push_back(Point(xnew.at<float>(j) + center.x, ynew.at<float>(j) + center.y));
-			bladder[j].x += center.x;
-			bladder[j].y += center.y;
-		}
-
-		//-----------------------ALGORITHM----------------------
-
-		vector<Point2f> thicknessPoints(thickness.size());
-		fill(thicknessPoints.begin(), thicknessPoints.end(), Point2f(0.0, 0.0));
-		vector<double> distances(thickness.size());
-		fill(distances.begin(), distances.end(), 0);
-
-		int count = 0;
-		double meanDistance = 0;
-
-		for (int i = 0; i < thickness.size(); i++) { //
-
-			if (thickness[i] > 0.0) {
-				LineIterator it(edge_OXY, bladder[i], expantedBladder[i], 8, false);
-				LineIterator itBil(red_PA, bladder[i], expantedBladder[i], 8, false);
-
-
-				vector<Point2f> potencialPositions;
-				vector<int> potencialPositionsBasedOnIntesityCount;
-				vector<int> potencialPositionsBasedOnPixelCount;
-				vector<Point2f> coordinates(it.count);
-
-				int intensityCount = 0;
-				int countPixel = 0;
-				for (int j = 0; j < it.count; j++) //
-				{
-					Vec3b intensity = Vec3b(*it);
-					Vec3b intensityBil = Vec3b(*itBil);
-					if ((int)intensity.val[1] > 0) {
-						double dist = sqrt(pow(countPixel * xspace, 2) + pow(countPixel * yspace, 2));
-						if (dist > maxThickness) {
-							cout << "greated than maxThickness" << endl;
-							break;
-						}
-						if (dist > minThickness) { //&& countPixel > 15
-							potencialPositions.push_back(it.pos());
-							potencialPositionsBasedOnIntesityCount.push_back(intensityCount);
-							potencialPositionsBasedOnPixelCount.push_back(countPixel);
-						}
-					}
-					if ((int)intensityBil.val[1] < 10) {
-						intensityCount = 0;
-					}
-					intensityCount += (int)intensityBil.val[1];
-					cout << (int)intensityBil.val[1] << endl;
-					it++;
-					itBil++;
-					countPixel++;
-				}
-
-
-				if (!potencialPositionsBasedOnIntesityCount.empty()) {
-					int IndexOfmax_1 = max_element(potencialPositionsBasedOnIntesityCount.begin(), potencialPositionsBasedOnIntesityCount.end()) - potencialPositionsBasedOnIntesityCount.begin();
-
-					Point winner = potencialPositions[IndexOfmax_1];
-					thicknessPoints[i] = winner;
-					double distance = potencialPositionsBasedOnPixelCount[IndexOfmax_1];//sqrt(pow(winner.x - bladder[i].x, 2) + pow(winner.y - bladder[i].y, 2));
-
-					distances[i] = distance;
-					count++;
-					cout << "---->Distance: " << distance << endl;
-					meanDistance += distance;
-
-				}
-				cout << "-----------------" << endl;
-				//line(PA_initial, bladder_updated[i], expantedBladder[i], Scalar(255, 255, 255), 1);
-				
-				//some memory release
-				/*vector<Point2f>().swap(potencialPositions);
-				vector<int>().swap(potencialPositionsBasedOnIntesityCount);
-				vector<int>().swap(potencialPositionsBasedOnPixelCount);
-				vector<Point2f>().swap(coordinates);*/
-			}
-
-
-		}
-
-		meanDistance /= count;
-
-		int countNew = 0;
-		int newMeanDistance = 0;
-		for (int j = 0; j < thicknessPoints.size(); j++) {
-			if (distances[j] > 0.7 * meanDistance && distances[j] < 1.3 * meanDistance) {
-
-				cout << "point: " << j << ":  " << distances[j] << endl;
-				newMeanDistance += meanDistance;
-				countNew++;
-			}
-			else {
-				thicknessPoints[j] = Point2f(0.0, 0.0);
-			}
-		}
-		newMeanDistance /= countNew;
-
-
-		//---------------------------MEAN TICKNESS-------------------
-		for (int i = 0; i < outer_mean.size(); i++) {
-			outer_mean[i].x += round(newMeanDistance);
-		}
-		Mat magT(outer_mean.size(), 1, CV_32F, &outer_mean[0].x, 2 * sizeof(float));
-		Mat angT(outer_mean.size(), 1, CV_32F, &outer_mean[0].y, 2 * sizeof(float));
-		Mat xnewT, ynewT;
-
-		vector<Point2f> meanThickness;
-		polarToCart(magT, angT, xnewT, ynewT);
-		for (int j = 0; j < polarXY_outer.size(); j++) {
-			meanThickness.push_back(Point2f(xnewT.at<float>(j) + center.x, ynewT.at<float>(j) + center.y));
-		}
-		//-----------------------------------------------------------
-
-		for (int j = 0; j < thicknessPoints.size(); j++) {
-			if (thicknessPoints[j] == Point2f(0.0, 0.0)) {
-				thicknessPoints[j] = meanThickness[j];
-			}
-			//OXYImage.at<uchar>(thicknessPoints[j].y, thicknessPoints[j].x) = 255;
-		}
-
-		////String pathbmp = this->outputSegmentedImagesDir + "/" + to_string(k) + ".bmp";
-		//String pathbmp = this->outputSegmentedImagesDir + "/" + to_string(k) + ".bmp";
-		//imwrite(pathbmp, OXYImage);
-
-		this->thicknessPoints.push_back(smoothContour(thicknessPoints,0));
-
-		//some memory release
-		OXYImage.release(); 
-		red_PA.release();
-		edge_OXY.release();
-		mag.release();
-		ang.release();
-		magT.release();
-		angT.release();
-		vector<Point2f>().swap(polarXY_outer);
-		vector<Point2f>().swap(outer_mean);
-		vector<Point2f>().swap(bladder);
-		vector<Point2f>().swap(thicknessPoints);
-		vector<Point2f>().swap(meanThickness);
+		//OXYImage.at<uchar>(thicknessPoints[j].y, thicknessPoints[j].x) = 255;
 	}
+
+	////String pathbmp = this->outputSegmentedImagesDir + "/" + to_string(frame) + ".bmp";
+	//String pathbmp = this->outputSegmentedImagesDir + "/" + to_string(frame) + ".bmp";
+	//imwrite(pathbmp, OXYImage);
+
+	if (type == totalSequenceOrCorrecton::TOTAL) {
+		this->thicknessPoints.push_back(smoothContour(thicknessPoints, 0));
+	}
+	else {
+		this->contourForFix = smoothContour(thicknessPoints, 0);
+		this->thicknessPoints[frame - this->initialFrame] = this->contourForFix;
+	}
+
+
+	//some memory release
+	OXYImage.release();
+	red_PA.release();
+	edge_OXY.release();
+	mag.release();
+	ang.release();
+	magT.release();
+	angT.release();
+	vector<Point2f>().swap(polarXY_outer);
+	vector<Point2f>().swap(outer_mean);
+	vector<Point2f>().swap(bladder);
+	vector<Point2f>().swap(thicknessPoints);
+	vector<Point2f>().swap(meanThickness);
+
 }
 
 
@@ -275,10 +301,7 @@ void photoAcoustic::writeThicknessPoints() {
 
 	OXYImage.release();
 	vector<Point2f>().swap(thicknessPoints);
-
 }
-
-
 
 
 Point2f photoAcoustic::findCenterOfContour(vector<Point2f> contour) {
@@ -292,6 +315,21 @@ Point2f photoAcoustic::findCenterOfContour(vector<Point2f> contour) {
 
 	return center;
 }
+
+void photoAcoustic::finalizeAllThicknessContours (vector<vector<Point2f>> thicknessContours) {
+	vector<vector<Point2f>>().swap(finalThicknessPoints);
+	for (int i = 0; i < thicknessContours.size(); i++) {
+		this->finalThicknessPoints.push_back(smoothContour(thicknessContours[i], 100));
+	}	
+}
+
+
+void photoAcoustic::interpolatePointsOfContourIsGoingToBeFixed() {
+	vector<Point2f> points = this->contourForFix;
+	vector<Point2f>().swap(this->contourForFix);
+	this->contourForFix = smoothContour(points, 100);
+}
+
 
 vector<Point2f> photoAcoustic::smoothContour(vector<Point2f> contour, int num_spline) {
 

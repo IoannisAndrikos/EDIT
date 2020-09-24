@@ -61,6 +61,16 @@ namespace EDITProcessor {
 			return BladderPoints;
 		}
 
+		List<EDITCore::CVPoint^>^ vectorPointsTOListPoints(vector<Point2f> lumenPoints) {
+
+			List<EDITCore::CVPoint^>^ BladderPoints = gcnew List<EDITCore::CVPoint^>();
+			for (int i = 0; i < lumenPoints.size(); i++) {
+				BladderPoints->Add(gcnew EDITCore::CVPoint(lumenPoints[i].x, lumenPoints[i].y));
+			}
+			return BladderPoints;
+		}
+
+
 		vector<vector<Point2f>> listPointsToVectorPoints(List<List<EDITCore::CVPoint^>^> ^listPoints) {
 
 			vector<vector<Point2f>> vectorPoints;
@@ -78,6 +88,17 @@ namespace EDITProcessor {
 
 			return vectorPoints;
 		}
+
+		vector<Point2f> listPointsToVectorPoints(List<EDITCore::CVPoint^>^ listPoints) {
+
+			vector<Point2f> vectorPoints;
+
+			for (int i = 0; i < listPoints->Count; i++) {
+				vectorPoints.push_back(Point2f(listPoints[i]->GetX(), listPoints[i]->GetY()));
+			}
+			return vectorPoints;
+		}
+
 		//------------------------------------------------------------------------------------------------
 
 	public:
@@ -165,11 +186,12 @@ namespace EDITProcessor {
 		 }
 
 		 void repeatSegmentation() {
-			 ultr->clearLumenAndSkinPoints();
+			 ultr->clearUltrasoundProcess();
+			 photo->clearThicknessProcess();
 		 }
 
 
-		 List<double>^ getLumenMetrics() {
+		 /*List<double>^ getLumenMetrics() {
 			 vector<double> lumenVectorArea = ultr->getLumenArea();
 			 List<double>^ lumenListArea;
 			 for each (double area in lumenVectorArea)
@@ -179,7 +201,7 @@ namespace EDITProcessor {
 			 vector<double>().swap(lumenVectorArea);
 
 			 return lumenListArea;
-		 }
+		 }*/
 
 
 		 // ------------------------------ P H O T O A C O U S T I C - P A R T ----------------------------------
@@ -200,10 +222,50 @@ namespace EDITProcessor {
 			 photo->setLastFrame(ultr->getLastFrame());
 			 photo->setlumenPoints(ultr->getlumenPoints());
 			 photo->thicknessExtraction();
-
-
 			 vector<vector<Point2f>> thicknessPoints = photo->getThicknessPoints();
 			 return vectorPointsTOListPoints(thicknessPoints);
+		 }
+
+		 List<EDITCore::CVPoint^>^ extractThicknessForUniqueFrame(int frame, List<EDITCore::CVPoint^>^ bladderPoints) {
+			 photo->setContourForFix(listPointsToVectorPoints(bladderPoints));
+			 photo->thicknessExtraction(frame);
+			 vector<Point2f> thicknessPoints = photo->getContourForFix();
+			 return vectorPointsTOListPoints(thicknessPoints);
+		 }
+
+		 //extract STL
+		 void extractThicknessSTL(List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
+
+			 vector<double> Tags = photo->getTags();
+			 proc->xspace = Tags[0] * 10;
+			 proc->yspace = Tags[1] * 10;
+			 proc->distanceBetweenFrames = 0.203;
+			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
+			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
+			 string stydyDir = photo->getStudyDir();
+			 proc->setStudyDir(stydyDir);
+			 if (this->isLoggerEnabled) proc->openLogger();
+
+			 photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
+
+			 proc->triangulation(photo->getFinalThicknessPoints(), process_3D::STLType::THICKNESS);
+			 //proc->triangulation(listPointsToVectorPoints(bladderPoints));
+		 }
+
+
+		 List<double>^ getMeanThickness() {
+			 vector<double> meanThicknessVec = photo->getMeanThickness();
+
+			// cout << "gia na doume" << meanThicknessVec.size() << endl;
+
+			 List<double>^ meanThickness = gcnew List<double>();
+			 for each (double mT in meanThicknessVec)
+			 {
+				 meanThickness->Add(mT);
+			 }
+			 vector<double>().swap(meanThicknessVec);
+
+			 return meanThickness;
 		 }
 
 

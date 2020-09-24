@@ -40,7 +40,8 @@ public:
 	~photoAcoustic(); //destructor
 
 	void exportImages(string dicomPath);
-	void thicknessExtraction();
+	void thicknessExtraction(int frame = 0); //frame = 0 means that the process will be performed for all photoAcoustic sequenence
+	void finalizeAllThicknessContours(vector<vector<Point2f>> thicknessContours);
 	void writeThicknessPoints();
 
 	void setMainOutputDirectory(string mainOutputDirectory) {
@@ -92,6 +93,19 @@ public:
 		return thicknessPoints;
 	}
 
+	vector<Point2f> getContourForFix() {
+		return this->contourForFix;
+	}
+
+
+	vector<double> getMeanThickness() {
+		return meanThickness;
+	}
+
+	vector<vector<Point2f>> getFinalThicknessPoints() {
+		return finalThicknessPoints;
+	}
+
 	//------------------------------------------THESE SHOULD BE GIVEN BY ULTRASOUND PART---------------------------
 	void setInitialFrame(int initialFrame){
 		this->initialFrame = initialFrame;
@@ -104,10 +118,19 @@ public:
 	void setlumenPoints(vector<vector<Point2f>> lumenPoints) {
 		this->lumenPoints = lumenPoints;
 	}
+
+	void setContourForFix(vector<Point2f> contourForFix) {
+		this->contourForFix = contourForFix;
+	}
+
 	//-------------------------------------------------------------------------------------------------------------
 
-	void clearThicknessPoints() {
+	void clearThicknessProcess() {
 		vector<vector<Point2f>>().swap(this->thicknessPoints);
+		vector<vector<Point2f>>().swap(this->lumenPoints);
+		vector<vector<Point2f>>().swap(this->finalThicknessPoints);
+		vector<Point2f>().swap(this->contourForFix);
+		vector<double>().swap(meanThickness);
 		LoggerMessage("The Segmentation process was repeated");
 	}
 
@@ -118,9 +141,11 @@ public:
 
 private:
 	//functions
-	enum ResultOfProcess { SUCCESS, FAILURE };
+	enum totalSequenceOrCorrecton { TOTAL, CORRECTION};
 	void creatDirectories();
+	void process(int frame, totalSequenceOrCorrecton type);
 	vector<Point2f> smoothContour(vector<Point2f> contour, int num_spline = 0);
+	void interpolatePointsOfContourIsGoingToBeFixed();
 	vector<Point2f> smoothCurve(vector<vector<vector<double>>> centerline, int num_spline = 0);
 	Point2f findCenterOfContour(vector<Point2f> contour);
 
@@ -142,7 +167,10 @@ private:
 	int initialFrame;
 	int lastFrame;
 	vector<vector<Point2f>> thicknessPoints;
+	vector<vector<Point2f>> finalThicknessPoints;
+	vector<double> meanThickness;
 	vector<vector<Point2f>> lumenPoints;
+	vector<Point2f> contourForFix;
 	string loggertxt;
 
 };

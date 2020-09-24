@@ -120,7 +120,7 @@ public:
 		return lumenArea;
 	}
 
-	void clearLumenAndSkinPoints() {
+	void clearUltrasoundProcess() {
 		vector<vector<Point2f>>().swap(this->lumenPoints);
 		vector<vector<Point2f>>().swap(this->skinPoints);
 		LoggerMessage("The Segmentation process was repeated");
