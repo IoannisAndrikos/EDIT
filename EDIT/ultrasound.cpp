@@ -98,6 +98,11 @@ template<class T> morphsnakes::NDImage<T, 2> cimg2ndimage(CImg<T>& img)
 
 void ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint) {
 
+
+	vector<vector<Point2f>>().swap(this->lumenPoints);
+	vector<vector<Point2f>>().swap(this->skinPoints);
+	vector<double>().swap(this->lumenArea);
+
 	this->initialFrame = initialFrame;
 	this->lastFrame = lastFrame;
 	CImg<unsigned char> embedding;

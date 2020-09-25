@@ -51,6 +51,10 @@ void photoAcoustic::exportImages(string dicomPath) {
 
 void photoAcoustic::thicknessExtraction(int frame) {
 	if (frame == 0) {
+		vector<vector<Point2f>>().swap(this->thicknessPoints);
+		vector<vector<Point2f>>().swap(finalThicknessPoints);
+		vector<double>().swap(meanThickness);
+		vector<Point2f>().swap(contourForFix);
 		for (int k = this->initialFrame; k <= this->lastFrame; k++) {
 			process(k, totalSequenceOrCorrecton::TOTAL);
 		}
@@ -62,14 +66,6 @@ void photoAcoustic::thicknessExtraction(int frame) {
 
 
 void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
-
-	//----------------------CONFIGURATIONS GIVEN BY USER------------------
-	double maxThickness = 0.8;
-	double minThickness = 0.2;
-	double minDegree = 180.0;
-	double maxDegree = 360.0;
-	int pixelDistance = 30;
-	//--------------------------------------------------------------------
 
 	double xspace = tags[0] * 10;
 	double yspace = tags[1] * 10;
@@ -114,10 +110,10 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 
 	for (int j = 0; j < bladder.size(); j++) {
 		double degree = 180 * angle.at<float>(j) / CV_PI;
-		if (degree < minDegree || degree > maxDegree) {
+		if (degree < this->minDegree || degree > this->maxDegree) {
 			thickness[j] = 0.0;
 		}
-		polarXY_outer.push_back(Point2f(magnitude.at<float>(j) + pixelDistance, angle.at<float>(j)));
+		polarXY_outer.push_back(Point2f(magnitude.at<float>(j) + this->pixelDistance, angle.at<float>(j)));
 		outer_mean.push_back(Point2f(magnitude.at<float>(j), angle.at<float>(j)));
 	}
 
@@ -163,11 +159,11 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 				Vec3b intensityBil = Vec3b(*itBil);
 				if ((int)intensity.val[1] > 0) {
 					double dist = sqrt(pow(countPixel * xspace, 2) + pow(countPixel * yspace, 2));
-					if (dist > maxThickness) {
+					if (dist > this->maxThickness) {
 						//cout << "greated than maxThickness" << endl;
 						break;
 					}
-					if (dist > minThickness) { //&& countPixel > 15
+					if (dist > this->minThickness) { //&& countPixel > 15
 						potencialPositions.push_back(it.pos());
 						potencialPositionsBasedOnIntesityCount.push_back(intensityCount);
 						potencialPositionsBasedOnPixelCount.push_back(countPixel);

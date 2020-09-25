@@ -116,10 +116,12 @@ public:
 	}
 
 	void setlumenPoints(vector<vector<Point2f>> lumenPoints) {
+	//	vector<vector<Point2f>>().swap(lumenPoints);
 		this->lumenPoints = lumenPoints;
 	}
 
 	void setContourForFix(vector<Point2f> contourForFix) {
+	//	vector<Point2f>().swap(contourForFix);
 		this->contourForFix = contourForFix;
 	}
 
@@ -138,6 +140,12 @@ public:
 	//variables
 	bool enableLogging = true;
 	ofstream logFile;
+	double maxThickness = 0.7;
+	double minThickness = 0.3;
+	double minDegree = 180.0;
+	double maxDegree = 360.0;
+	int pixelDistance = 30;
+
 
 private:
 	//functions

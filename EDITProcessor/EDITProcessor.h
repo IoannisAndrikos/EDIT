@@ -216,6 +216,12 @@ namespace EDITProcessor {
 			 return msclr::interop::marshal_as<System::String^>(outputimagesDir);
 		 }
 
+		 void setPhotoAcousticSegmentationConfigurations(double minThickness, double maxThickness) {
+			 photo->minThickness = minThickness;
+			 photo->maxThickness = maxThickness;
+		 }
+
+
 		 List<List<EDITCore::CVPoint^>^> ^extractThickness(List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
 			 ultr->finalizePoints(listPointsToVectorPoints(bladderPoints));
 			 photo->setInitialFrame(ultr->getInitialFrame());
