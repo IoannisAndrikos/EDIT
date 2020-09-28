@@ -80,14 +80,20 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 	//cout << this->lumenPoints.size() << endl;
 
 
-	vector<Point2f> bladder = this->lumenPoints[frame - this->initialFrame]; //--------------------------->??????
+	vector<Point2f> bladder;// = this->lumenPoints[frame - this->initialFrame]; //--------------------------->??????
 	if (type == totalSequenceOrCorrecton::TOTAL) {
-		bladder = this->lumenPoints[frame - this->initialFrame];
+		//bladder = this->lumenPoints[frame - this->initialFrame];
+		convexHull(this->lumenPoints[frame - this->initialFrame], bladder, true);
+
+		bladder.push_back(bladder[0]);
+		bladder = smoothContour(bladder, 100);
 	}
 	else {
-		interpolatePointsOfContourIsGoingToBeFixed();
-		bladder = this->contourForFix;
+		//interpolatePointsOfContourIsGoingToBeFixed();
+		convexHull(this->contourForFix, bladder, true);
 		vector<Point2f>().swap(this->contourForFix);
+		bladder.push_back(bladder[0]);
+		bladder = smoothContour(bladder, 100);
 	}
 
 	Point2f center = findCenterOfContour(bladder);
@@ -193,7 +199,12 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 				meanDistance += distance;
 
 			}
-	
+			
+			vector<Point2f>().swap(potencialPositions);
+			vector<int>().swap(potencialPositionsBasedOnIntesityCount);
+			vector<int>().swap(potencialPositionsBasedOnPixelCount);
+			vector<Point2f>().swap(coordinates);
+
 			//line(PA_initial, bladder_updated[i], expantedBladder[i], Scalar(255, 255, 255), 1);
 		}
 
@@ -281,18 +292,26 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 
 
 void photoAcoustic::writeThicknessPoints() {
-	Mat OXYImage; 
+	Mat OXYImage;
 	vector<Point2f> thicknessPoints;
 	for (int k = this->initialFrame; k <= this->lastFrame; k++) {
-		thicknessPoints = this->thicknessPoints[k - initialFrame];
+		int frame = k - this->initialFrame;
+
+
+		String Thicknesstxt = this->outputPointsDir + "/" + to_string(k) + ".txt";
+		ofstream fileThickness;
+
+		thicknessPoints = this->finalThicknessPoints[k - initialFrame];
 		OXYImage = this->images[k].clone();
 
 		for (int i = 0; i < thicknessPoints.size(); i++) {
+			fileThickness << this->thicknessPoints[frame][i].x << " " << this->thicknessPoints[frame][i].y << endl;
 			OXYImage.at<uchar>(thicknessPoints[i].y, thicknessPoints[i].x) = 255;
 		}
 
 		String pathbmp = this->outputSegmentedImagesDir + "/" + to_string(k) + ".bmp";
 		imwrite(pathbmp, OXYImage);
+		fileThickness.close();
 	}
 
 	OXYImage.release();
@@ -317,13 +336,6 @@ void photoAcoustic::finalizeAllThicknessContours (vector<vector<Point2f>> thickn
 	for (int i = 0; i < thicknessContours.size(); i++) {
 		this->finalThicknessPoints.push_back(smoothContour(thicknessContours[i], 100));
 	}	
-}
-
-
-void photoAcoustic::interpolatePointsOfContourIsGoingToBeFixed() {
-	vector<Point2f> points = this->contourForFix;
-	vector<Point2f>().swap(this->contourForFix);
-	this->contourForFix = smoothContour(points, 100);
 }
 
 

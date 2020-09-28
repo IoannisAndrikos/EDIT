@@ -144,7 +144,7 @@ public:
 	double minThickness = 0.3;
 	double minDegree = 180.0;
 	double maxDegree = 360.0;
-	int pixelDistance = 30;
+	int pixelDistance = 40;
 
 
 private:
@@ -153,7 +153,6 @@ private:
 	void creatDirectories();
 	void process(int frame, totalSequenceOrCorrecton type);
 	vector<Point2f> smoothContour(vector<Point2f> contour, int num_spline = 0);
-	void interpolatePointsOfContourIsGoingToBeFixed();
 	vector<Point2f> smoothCurve(vector<vector<vector<double>>> centerline, int num_spline = 0);
 	Point2f findCenterOfContour(vector<Point2f> contour);
 

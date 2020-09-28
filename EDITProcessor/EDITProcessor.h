@@ -99,6 +99,13 @@ namespace EDITProcessor {
 			return vectorPoints;
 		}
 
+		void freeMemory(List<List<EDITCore::CVPoint^>^>^ listPoints) {
+			listPoints->Clear();
+		}
+
+		void freeMemory(List<EDITCore::CVPoint^>^ listPoints) {
+			listPoints->Clear();
+		}
 		//------------------------------------------------------------------------------------------------
 
 	public:
@@ -169,6 +176,7 @@ namespace EDITProcessor {
 			 if (this->isLoggerEnabled) proc->openLogger();
 
 			 ultr->finalizePoints(listPointsToVectorPoints(bladderPoints));
+			 freeMemory(bladderPoints);
 
 			 proc->triangulation(ultr->getlumenPoints(), process_3D::STLType::BLADDER);
 			 //proc->triangulation(listPointsToVectorPoints(bladderPoints));
@@ -223,10 +231,12 @@ namespace EDITProcessor {
 
 
 		 List<List<EDITCore::CVPoint^>^> ^extractThickness(List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
-			 ultr->finalizePoints(listPointsToVectorPoints(bladderPoints));
+			// ultr->finalizePoints(listPointsToVectorPoints(bladderPoints));
+			
 			 photo->setInitialFrame(ultr->getInitialFrame());
 			 photo->setLastFrame(ultr->getLastFrame());
-			 photo->setlumenPoints(ultr->getlumenPoints());
+			 photo->setlumenPoints(listPointsToVectorPoints(bladderPoints));
+			 freeMemory(bladderPoints);
 			 photo->thicknessExtraction();
 			 vector<vector<Point2f>> thicknessPoints = photo->getThicknessPoints();
 			 return vectorPointsTOListPoints(thicknessPoints);
@@ -234,6 +244,7 @@ namespace EDITProcessor {
 
 		 List<EDITCore::CVPoint^>^ extractThicknessForUniqueFrame(int frame, List<EDITCore::CVPoint^>^ bladderPoints) {
 			 photo->setContourForFix(listPointsToVectorPoints(bladderPoints));
+			 freeMemory(bladderPoints);
 			 photo->thicknessExtraction(frame);
 			 vector<Point2f> thicknessPoints = photo->getContourForFix();
 			 return vectorPointsTOListPoints(thicknessPoints);
@@ -253,6 +264,7 @@ namespace EDITProcessor {
 			 if (this->isLoggerEnabled) proc->openLogger();
 
 			 photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
+			 freeMemory(thicknessPoints);
 
 			 proc->triangulation(photo->getFinalThicknessPoints(), process_3D::STLType::THICKNESS);
 			 //proc->triangulation(listPointsToVectorPoints(bladderPoints));
@@ -275,8 +287,10 @@ namespace EDITProcessor {
 		 }
 
 
-		void writeThicknessPoints() {
-			 photo->writeThicknessPoints();
+		void writeThicknessPoints(List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
+			photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
+			freeMemory(thicknessPoints);
+			photo->writeThicknessPoints();
 		 }
 
 	};
