@@ -8,7 +8,7 @@ process_3D::process_3D() {
 process_3D::~process_3D() {
 }
 
-vtkSmartPointer<vtkPolyData> process_3D::triangulation(vector<vector<Point2f>> point_cloud, STLType type) {
+string process_3D::triangulation(vector<vector<Point2f>> point_cloud, STLType type) {
 
 	vtkSmartPointer<vtkPoints> points = vtkSmartPointer< vtkPoints >::New();
 	for (int i = 0; i < point_cloud.size(); i++) {
@@ -78,13 +78,13 @@ vtkSmartPointer<vtkPolyData> process_3D::triangulation(vector<vector<Point2f>> p
 	process_3D::LoggerMessage("Initial triangularion was produced successfully");
 
 	
-	surface_smoothing(trianglePolyData, type, firstContour, lastContour);
+	string filename_stl = surface_smoothing(trianglePolyData, type, firstContour, lastContour);
 
-	return trianglePolyData;
+	return filename_stl;
 }
 
 
-vtkSmartPointer<vtkPolyData> process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type, vector<Point2f> firstContour, vector<Point2f> lastContour){
+string process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type, vector<Point2f> firstContour, vector<Point2f> lastContour){
 	
 	try {
 		//smooth surface 
@@ -141,7 +141,7 @@ vtkSmartPointer<vtkPolyData> process_3D::surface_smoothing(vtkSmartPointer<vtkPo
 		smoothed_branch = normalGenerator->GetOutput();
 
 
-		return smoothed_branch;
+		return filename_stl;
 	}
 	catch (Exception e) {
 		LoggerMessage("A problem was occured during the stl smoothing process");

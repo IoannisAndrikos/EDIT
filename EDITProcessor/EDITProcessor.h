@@ -163,7 +163,7 @@ namespace EDITProcessor {
 		 }
 
 		 //extract STL
-		 void extractBladderSTL(List<List<EDITCore::CVPoint^>^> ^bladderPoints) {
+		 System::String ^extractBladderSTL(List<List<EDITCore::CVPoint^>^> ^bladderPoints) {
 
 			 vector<double> Tags = ultr->getTags();
 			 proc->xspace = Tags[0] * 10;
@@ -178,14 +178,15 @@ namespace EDITProcessor {
 			 ultr->finalizePoints(listPointsToVectorPoints(bladderPoints));
 			 freeMemory(bladderPoints);
 
-			 proc->triangulation(ultr->getlumenPoints(), process_3D::STLType::BLADDER);
-			 //proc->triangulation(listPointsToVectorPoints(bladderPoints));
+			 string STLPath = proc->triangulation(ultr->getlumenPoints(), process_3D::STLType::BLADDER);
+			 return msclr::interop::marshal_as<System::String^>(STLPath);
 		 }
 
-		 void extractSkin() {
+		 System::String ^extractSkinSTL() {
 			 ultr->extractSkinPoints();
 			 vector<vector<Point2f>> skinPoints = ultr->getSkinPoints();
-			 proc->triangulation(skinPoints, process_3D::STLType::SKIN);
+			 string STLPath = proc->triangulation(skinPoints, process_3D::STLType::SKIN);
+			 return msclr::interop::marshal_as<System::String^>(STLPath);
 		 }
 
 
@@ -197,20 +198,6 @@ namespace EDITProcessor {
 			 ultr->clearUltrasoundProcess();
 			 photo->clearThicknessProcess();
 		 }
-
-
-		 /*List<double>^ getLumenMetrics() {
-			 vector<double> lumenVectorArea = ultr->getLumenArea();
-			 List<double>^ lumenListArea;
-			 for each (double area in lumenVectorArea)
-			 {
-				 lumenListArea->Add(area);
-			 }
-			 vector<double>().swap(lumenVectorArea);
-
-			 return lumenListArea;
-		 }*/
-
 
 		 // ------------------------------ P H O T O A C O U S T I C - P A R T ----------------------------------
 
@@ -251,7 +238,7 @@ namespace EDITProcessor {
 		 }
 
 		 //extract STL
-		 void extractThicknessSTL(List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
+		 System::String ^extractThicknessSTL(List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
 
 			 vector<double> Tags = photo->getTags();
 			 proc->xspace = Tags[0] * 10;
@@ -266,16 +253,13 @@ namespace EDITProcessor {
 			 photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
 			 freeMemory(thicknessPoints);
 
-			 proc->triangulation(photo->getFinalThicknessPoints(), process_3D::STLType::THICKNESS);
-			 //proc->triangulation(listPointsToVectorPoints(bladderPoints));
+			 string STLPath = proc->triangulation(photo->getFinalThicknessPoints(), process_3D::STLType::THICKNESS);
+			 return msclr::interop::marshal_as<System::String^>(STLPath);
 		 }
 
 
 		 List<double>^ getMeanThickness() {
 			 vector<double> meanThicknessVec = photo->getMeanThickness();
-
-			// cout << "gia na doume" << meanThicknessVec.size() << endl;
-
 			 List<double>^ meanThickness = gcnew List<double>();
 			 for each (double mT in meanThicknessVec)
 			 {

@@ -55,8 +55,8 @@ public:
 
 	enum STLType { BLADDER, SKIN, THICKNESS};
 
-	vtkSmartPointer<vtkPolyData> triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
-	vtkSmartPointer<vtkPolyData> surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type, vector<Point2f> firstContour, vector<Point2f> lastContour); //string path
+	string triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
+	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type, vector<Point2f> firstContour, vector<Point2f> lastContour); //string path
 
 	void setStudyDir(string studyDir) {
 		this->studyDir = studyDir;
