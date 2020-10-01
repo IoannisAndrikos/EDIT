@@ -55,6 +55,7 @@ public:
 
 	enum STLType { BLADDER, SKIN, THICKNESS};
 
+
 	string triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
 	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type, vector<Point2f> firstContour, vector<Point2f> lastContour); //string path
 
@@ -80,6 +81,7 @@ public:
 	double distanceBetweenFrames;
 	ofstream logFile;
 	Point2f imageCenter;
+	bool fillHoles = true;
 
 private:
 	//variable

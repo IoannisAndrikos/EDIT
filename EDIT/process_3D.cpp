@@ -96,19 +96,28 @@ string process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLTy
 		smoothFilter->BoundarySmoothingOn();
 		smoothFilter->Update();
 
-		//close holes of surface
-		vtkSmartPointer<vtkFillHolesFilter> fillHolesFilter = vtkSmartPointer<vtkFillHolesFilter>::New();
-		fillHolesFilter->CAN_PRODUCE_SUB_EXTENT;
-		fillHolesFilter->SetHoleSize(10000); //1E6
-		fillHolesFilter->SetInputConnection(smoothFilter->GetOutputPort());
-		fillHolesFilter->Update();
+		vtkSmartPointer<vtkFillHolesFilter> fillHolesFilter;
+		if (this->fillHoles) {
+			//close holes of surface
+			fillHolesFilter = vtkSmartPointer<vtkFillHolesFilter>::New();
+			fillHolesFilter->CAN_PRODUCE_SUB_EXTENT;
+			fillHolesFilter->SetHoleSize(10000); //1E6
+			fillHolesFilter->SetInputConnection(smoothFilter->GetOutputPort());
+			fillHolesFilter->Update();
+		}
+		
 		/*vtkSmartPointer<vtkPolyDataMapper> filledMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
 		filledMapper->SetInputData(fillHolesFilter->GetOutput());
 		filledMapper->Update();*/
 
 		// Update normals on newly smoothed polydata
 		vtkSmartPointer<vtkPolyDataNormals> normalGenerator = vtkSmartPointer<vtkPolyDataNormals>::New();
-		normalGenerator->SetInputConnection(fillHolesFilter->GetOutputPort());
+		if (this->fillHoles) {
+			normalGenerator->SetInputConnection(fillHolesFilter->GetOutputPort());
+		}
+		else {
+			normalGenerator->SetInputConnection(smoothFilter->GetOutputPort());
+		}
 		normalGenerator->ComputePointNormalsOn();
 		normalGenerator->ComputeCellNormalsOn();
 		normalGenerator->Update();

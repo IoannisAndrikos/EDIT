@@ -163,9 +163,10 @@ namespace EDITProcessor {
 		 }
 
 		 //extract STL
-		 System::String ^extractBladderSTL(List<List<EDITCore::CVPoint^>^> ^bladderPoints) {
+		 System::String^ extractBladderSTL(List<List<EDITCore::CVPoint^>^>^ bladderPoints, bool fillHoles) {
 
 			 vector<double> Tags = ultr->getTags();
+			 proc->fillHoles = fillHoles;
 			 proc->xspace = Tags[0] * 10;
 			 proc->yspace = Tags[1] * 10;
 			 proc->distanceBetweenFrames = 0.203;
@@ -182,7 +183,8 @@ namespace EDITProcessor {
 			 return msclr::interop::marshal_as<System::String^>(STLPath);
 		 }
 
-		 System::String ^extractSkinSTL() {
+		 System::String ^extractSkinSTL(bool fillHoles) {
+			 proc->fillHoles = fillHoles;
 			 ultr->extractSkinPoints();
 			 vector<vector<Point2f>> skinPoints = ultr->getSkinPoints();
 			 string STLPath = proc->triangulation(skinPoints, process_3D::STLType::SKIN);
@@ -238,9 +240,10 @@ namespace EDITProcessor {
 		 }
 
 		 //extract STL
-		 System::String ^extractThicknessSTL(List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
+		 System::String ^extractThicknessSTL(List<List<EDITCore::CVPoint^>^>^ thicknessPoints, bool fillHoles) {
 
 			 vector<double> Tags = photo->getTags();
+			 proc->fillHoles = fillHoles;
 			 proc->xspace = Tags[0] * 10;
 			 proc->yspace = Tags[1] * 10;
 			 proc->distanceBetweenFrames = 0.203;
