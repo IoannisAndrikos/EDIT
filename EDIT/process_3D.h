@@ -40,6 +40,9 @@
 #include <vtk-9.0/vtkLinearSubdivisionFilter.h>
 #include <vtk-9.0/vtkButterflySubdivisionFilter.h>
 #include <vtk-9.0/vtkLoopSubdivisionFilter.h>
+#include <vtk-9.0/vtkCleanPolyData.h>
+#include <vtk-9.0/vtkSelectEnclosedPoints.h>
+#include <vtk-9.0/vtkSTLReader.h>
 //---------------------------------------------------------------------
 
 
@@ -53,11 +56,12 @@ public:
 	process_3D(); //constructor
 	~process_3D(); //destructor
 
-	enum STLType { BLADDER, SKIN, THICKNESS};
+	enum STLType { BLADDER, SKIN, THICKNESS, OXY, DeOXY};
 
 
 	string triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
-	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type, vector<Point2f> firstContour, vector<Point2f> lastContour); //string path
+	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type); //string path
+	string findPixelsArePlacedIntoGeometries(vector<Point3f> pixels3D, STLType type);
 
 	void setStudyDir(string studyDir) {
 		this->studyDir = studyDir;
@@ -82,12 +86,15 @@ public:
 	ofstream logFile;
 	Point2f imageCenter;
 	bool fillHoles = true;
+	string bladderGeometry;
+	string thicknessGeometry;
+
 
 private:
 	//variable
 	string studyDir;
 	string outputObjectsDir;
-	string loggertxt;	
+	string loggertxt;
 
 	//functions
 	string getSTLName(STLType type);

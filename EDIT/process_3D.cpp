@@ -19,9 +19,6 @@ string process_3D::triangulation(vector<vector<Point2f>> point_cloud, STLType ty
 		}
 	}
 
-	vector<Point2f> firstContour = point_cloud[0];
-	vector<Point2f> lastContour = point_cloud[point_cloud.size()-1];
-
 	vtkSmartPointer<vtkCellArray> triangles = vtkSmartPointer<vtkCellArray>::New();
 
 	int ss = point_cloud[0].size();
@@ -74,22 +71,26 @@ string process_3D::triangulation(vector<vector<Point2f>> point_cloud, STLType ty
 	writer->SetInputData(trianglePolyData);
 	writer->Write();*/
 
-
 	process_3D::LoggerMessage("Initial triangularion was produced successfully");
 
 	
-	string filename_stl = surface_smoothing(trianglePolyData, type, firstContour, lastContour);
+	string filename_stl = surface_smoothing(trianglePolyData, type);
 
 	return filename_stl;
 }
 
 
-string process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type, vector<Point2f> firstContour, vector<Point2f> lastContour){
+string process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type){
 	
 	try {
+		vtkSmartPointer<vtkCleanPolyData> cleanPolyData = vtkSmartPointer<vtkCleanPolyData>::New();
+		cleanPolyData->SetInputData(surface);
+		cleanPolyData->Update();
+
+
 		//smooth surface 
 		vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter = vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
-		smoothFilter->SetInputData(surface);
+		smoothFilter->SetInputData(cleanPolyData->GetOutput());
 		smoothFilter->SetNumberOfIterations(10); //15
 		smoothFilter->SetRelaxationFactor(0.3); //0.3
 		smoothFilter->FeatureEdgeSmoothingOff();
@@ -118,9 +119,15 @@ string process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLTy
 		else {
 			normalGenerator->SetInputConnection(smoothFilter->GetOutputPort());
 		}
+		normalGenerator->FlipNormalsOff();
 		normalGenerator->ComputePointNormalsOn();
 		normalGenerator->ComputeCellNormalsOn();
+
+		//normalGenerator->get
+
 		normalGenerator->Update();
+
+		
 
 		//remesh
 		//vtkSmartPointer<vtkLinearSubdivisionFilter> subdivisionFilter = vtkSmartPointer<vtkLinearSubdivisionFilter>::New();
@@ -134,6 +141,13 @@ string process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLTy
 
 		string filename_stl = this->outputObjectsDir + "/smoothed_" + getSTLName(type) + ".stl";
 
+		if (type == STLType::BLADDER) {
+			this->bladderGeometry = filename_stl;
+		}
+		else if (type == STLType::THICKNESS) {
+			this->thicknessGeometry = filename_stl;
+		}
+			
 
 		//write polydata to .stl file
 		vtkSmartPointer<vtkSTLWriter> writer = vtkSmartPointer<vtkSTLWriter>::New();
@@ -154,10 +168,72 @@ string process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLTy
 	}
 	catch (Exception e) {
 		LoggerMessage("A problem was occured during the stl smoothing process");
+	}	
+}
+
+
+string process_3D::findPixelsArePlacedIntoGeometries(vector<Point3f> pixels3D, STLType type) {
+	
+	vector<Point3f> final_Points;
+
+	vtkSmartPointer<vtkPoints> points = vtkSmartPointer< vtkPoints >::New();
+	for (int i = 0; i < pixels3D.size(); i++) {
+		points->InsertNextPoint(pixels3D[i].x, pixels3D[i].y, pixels3D[i].z);
+	}
+	
+	vtkSmartPointer<vtkPolyData> pointsPolydata = vtkSmartPointer<vtkPolyData>::New();
+	pointsPolydata->SetPoints(points);
+
+	// bladder
+	vtkSmartPointer <vtkSTLReader> readerThickness = vtkSmartPointer<vtkSTLReader>::New();
+	readerThickness->SetFileName((this->thicknessGeometry).c_str());
+	readerThickness->Update();
+	vtkSmartPointer<vtkFillHolesFilter> fillHolesFilterThickness;
+	fillHolesFilterThickness = vtkSmartPointer<vtkFillHolesFilter>::New();
+	fillHolesFilterThickness->SetHoleSize(10000); //1E6
+	fillHolesFilterThickness->SetInputConnection(readerThickness->GetOutputPort());
+	fillHolesFilterThickness->Update();
+	vtkSmartPointer<vtkSelectEnclosedPoints> selectEnclosedPoints_thickness  = vtkSmartPointer<vtkSelectEnclosedPoints>::New();
+	selectEnclosedPoints_thickness->Initialize(fillHolesFilterThickness->GetOutput());
+	//selectEnclosedPoints_thickness->Update();
+
+
+	vtkSmartPointer <vtkSTLReader> readerBladder = vtkSmartPointer<vtkSTLReader>::New();
+	readerBladder->SetFileName((this->bladderGeometry).c_str());
+	readerBladder->Update();
+	vtkSmartPointer<vtkFillHolesFilter> fillHolesFilterBladder;
+	fillHolesFilterBladder = vtkSmartPointer<vtkFillHolesFilter>::New();
+	fillHolesFilterBladder->SetHoleSize(10000); //1E6
+	fillHolesFilterBladder->SetInputConnection(readerBladder->GetOutputPort());
+	fillHolesFilterBladder->Update();
+	vtkSmartPointer<vtkSelectEnclosedPoints> selectEnclosedPoints_bladder = vtkSmartPointer<vtkSelectEnclosedPoints>::New();
+	selectEnclosedPoints_bladder->Initialize(fillHolesFilterBladder->GetOutput());
+	//selectEnclosedPoints_bladder->Update();
+
+		
+	for (int i = 0; i < pixels3D.size(); i++) {
+		if(!selectEnclosedPoints_bladder->IsInsideSurface(pixels3D[i].x, pixels3D[i].y, pixels3D[i].z) && selectEnclosedPoints_thickness->IsInsideSurface(pixels3D[i].x, pixels3D[i].y, pixels3D[i].z)){
+			final_Points.push_back(pixels3D[i]);
+		}
 	}
 
-	
+	String txtFilename = this->outputObjectsDir + "/" + getSTLName(type) + ".txt";
+	ofstream txtfile;
+	txtfile.open(txtFilename);
+
+	for (int k = 0; k < final_Points.size(); k++) {
+		txtfile << final_Points[k].x << " " << final_Points[k].y << " " << final_Points[k].z << endl;
+	}
+
+	txtfile.close();
+
+	vector<Point3f>().swap(final_Points);
+
+	return txtFilename;
 }
+
+
+
 
 string process_3D::getSTLName(STLType type) {
 
@@ -165,11 +241,19 @@ string process_3D::getSTLName(STLType type) {
 	{
 	case process_3D::BLADDER:
 		return "Bladder";
-		
+		break;
 	case process_3D::SKIN:
 		return "Skin";
-
+		break;
 	case process_3D::THICKNESS:
 		return "Thickness";
+		break;
+	case process_3D::OXY:
+		return "OXY";
+		break;
+	case process_3D::DeOXY:
+		return "DeOXY";
+		break;
+
 	}
 }

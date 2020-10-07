@@ -39,29 +39,39 @@ public:
 	photoAcoustic(); //constructor
 	~photoAcoustic(); //destructor
 
-	void exportImages(string dicomPath);
+	void exportOXYImages(string dicomPath);
+	void exportDeOXYImages(string dicomPath);
 	void thicknessExtraction(int frame = 0); //frame = 0 means that the process will be performed for all photoAcoustic sequenence
 	void finalizeAllThicknessContours(vector<vector<Point2f>> thicknessContours);
+	void extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours);
 	void writeThicknessPoints();
 
 	void setMainOutputDirectory(string mainOutputDirectory) {
 		this->mainOutputDirectory = mainOutputDirectory;
 	}
 
-	string getOutputImagesDir() {
-		return outputImagesDir;
+	string getOutputOXYImagesDir() {
+		return outputOXYImagesDir;
+	}
+	
+	string getOutputDeOXYImagesDir() {
+		return outputDeOXYImagesDir;
 	}
 
 	string getStudyDir() {
 		return studyDir;
 	}
 
-	vector<Mat> getImages() {
-		return images;
+	vector<Mat> getOXYImages() {
+		return OXYimages;
+	}
+	
+	vector<Mat> getdeOXYImages() {
+		return deOXYimages;
 	}
 
 	Mat getIthImage(int i) {
-		return images[i];
+		return OXYimages[i];
 	}
 
 	vector<double> getTags() {
@@ -106,6 +116,14 @@ public:
 		return finalThicknessPoints;
 	}
 
+	vector<Point3f> getOXYPoints() {
+		return OXYPoints;
+	}
+
+	vector<Point3f> getDeOXYPoints() {
+		return DeOXYPoints;
+	}
+
 	//------------------------------------------THESE SHOULD BE GIVEN BY ULTRASOUND PART---------------------------
 	void setInitialFrame(int initialFrame){
 		this->initialFrame = initialFrame;
@@ -145,6 +163,7 @@ public:
 	double minDegree = 180.0;
 	double maxDegree = 360.0;
 	int pixelDistance = 40;
+	double distanceBetweenFrames = 0.203;
 
 
 private:
@@ -164,12 +183,15 @@ private:
 	string mainOutputDirectory;
 	string dicomPath;
 	string studyDir;
-	string outputImagesDir;
+	string outputOXYImagesDir;
+	string outputDeOXYImagesDir;
 	string outputSegmentedImagesDir;
 	string outputPointsDir;
 	string outputPath;
 	string filename;
-	vector<Mat> images;
+	vector<Mat> OXYimages;
+	vector<Mat> deOXYimages;
+	vector<Point3f> OXYPoints, DeOXYPoints;
 	vector<double> tags;
 	int initialFrame;
 	int lastFrame;

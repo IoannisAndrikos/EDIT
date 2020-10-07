@@ -123,7 +123,7 @@ int main(int argv, char* argc) {
 
 	photoAcoustic* photo = new photoAcoustic();
 	photo->setMainOutputDirectory(mainPath);
-	photo->exportImages("C:/Users/Legion Y540/Desktop/EDIT Data/month 0/R73/R73_OXY.dcm");
+	photo->exportOXYImages("C:/Users/Legion Y540/Desktop/EDIT Data/month 0/R73/R73_OXY.dcm");
 
 
 

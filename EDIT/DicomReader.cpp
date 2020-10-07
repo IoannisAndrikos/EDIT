@@ -398,7 +398,9 @@ vector<Mat> CDicomReader::dcmimage_Mat(const wchar_t * inor, String outputDir, d
 			cvimage = cvimage(Rect(round(xmin), round(ymin), x, y));
 			String pathbmp = outputDir + "/" + to_string(frame) + ".bmp";
 			imwrite(pathbmp, cvimage);
-			
+
+
+			Mat planes[3];
 			switch (channel)
 			{
 			case CDicomReader::GRAYSCALE:
@@ -406,19 +408,22 @@ vector<Mat> CDicomReader::dcmimage_Mat(const wchar_t * inor, String outputDir, d
 				images.push_back(cvimage);
 				break;
 			case CDicomReader::RED:
-				Mat planes[3];
 				split(cvimage, planes);
 				images.push_back(planes[2]);
-				planes->release();
 				break;
-			/*case CDicomReader::GREEN:
+			case CDicomReader::GREEN:
+				split(cvimage, planes);
+				images.push_back(planes[1]);
 				break;
 			case CDicomReader::BLUE:
+				split(cvimage, planes);
+				images.push_back(planes[0]);
 				break;
 			default:
-				break;*/
+				break;
 			}
-			
+
+			planes->release();
 			cvimage.release();
 		}
 

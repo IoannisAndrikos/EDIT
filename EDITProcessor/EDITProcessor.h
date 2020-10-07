@@ -204,12 +204,21 @@ namespace EDITProcessor {
 		 // ------------------------------ P H O T O A C O U S T I C - P A R T ----------------------------------
 
 		  //export photaccoustic images
-		 System::String^ exportPhotoAcousticImages(System::String^ dicomFile, bool isLoggerEnabled) {
+		 System::String^ exportOXYImages(System::String^ dicomFile, bool isLoggerEnabled) {
 			 this->isLoggerEnabled = isLoggerEnabled;
 			 string Dicom_file = msclr::interop::marshal_as<std::string>(dicomFile);
-			 photo->exportImages(Dicom_file); // 1
+			 photo->exportOXYImages(Dicom_file); // 1
 			 if (this->isLoggerEnabled) photo->openLogger(); //2
-			 string outputimagesDir = photo->getOutputImagesDir();
+			 string outputimagesDir = photo->getOutputOXYImagesDir();
+			 return msclr::interop::marshal_as<System::String^>(outputimagesDir);
+		 }
+
+		 //export photaccoustic images
+		 System::String^ exportDeOXYImages(System::String^ dicomFile, bool isLoggerEnabled) {
+			 this->isLoggerEnabled = isLoggerEnabled;
+			 string Dicom_file = msclr::interop::marshal_as<std::string>(dicomFile);
+			 photo->exportDeOXYImages(Dicom_file); // 1
+			 string outputimagesDir = photo->getOutputDeOXYImagesDir();
 			 return msclr::interop::marshal_as<System::String^>(outputimagesDir);
 		 }
 
@@ -258,6 +267,22 @@ namespace EDITProcessor {
 
 			 string STLPath = proc->triangulation(photo->getFinalThicknessPoints(), process_3D::STLType::THICKNESS);
 			 return msclr::interop::marshal_as<System::String^>(STLPath);
+		 }
+
+
+
+		 List<System::String^>^ extractOXYandDeOXYPoints(List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
+			photo-> distanceBetweenFrames = 0.203;
+			photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints));
+
+			string OXYPath = proc->findPixelsArePlacedIntoGeometries(photo->getOXYPoints(), process_3D::STLType::OXY);
+			string DeOXYPath = proc->findPixelsArePlacedIntoGeometries(photo->getDeOXYPoints(), process_3D::STLType::DeOXY);
+
+			 List<System::String^> ^paths = gcnew List<System::String^>();
+			 paths->Add(msclr::interop::marshal_as<System::String^>(OXYPath));
+			 paths->Add(msclr::interop::marshal_as<System::String^>(DeOXYPath));
+			
+			 return paths;
 		 }
 
 

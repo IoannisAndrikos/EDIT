@@ -15,8 +15,12 @@ void photoAcoustic::creatDirectories() {
 	this->studyDir = this->mainOutputDirectory + "/" + this->filename;
 	_mkdir(studyDir.c_str());
 
-	this->outputImagesDir = studyDir + "/photoacoustic_images";
-	_mkdir(outputImagesDir.c_str());
+	this->outputOXYImagesDir = studyDir + "/OXY_images";
+	_mkdir(outputOXYImagesDir.c_str());
+
+	this->outputDeOXYImagesDir = studyDir + "/deOXY_images";
+	_mkdir(outputDeOXYImagesDir.c_str());
+
 
 	this->outputSegmentedImagesDir = studyDir + "/photoacoustic_segmented_images";
 	_mkdir(outputSegmentedImagesDir.c_str());
@@ -29,7 +33,7 @@ void photoAcoustic::creatDirectories() {
 }
 
 
-void photoAcoustic::exportImages(string dicomPath) {
+void photoAcoustic::exportOXYImages(string dicomPath) {
 
 	this->dicomPath = dicomPath;
 	string nameAndExt = experimental::filesystem::path(dicomPath).filename().generic_string();
@@ -44,10 +48,32 @@ void photoAcoustic::exportImages(string dicomPath) {
 
 	CDicomReader* reader = new CDicomReader();
 	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags
-	this->images = reader->dcmimage_Mat(dcm_str.c_str(), this->outputImagesDir, tags[2], tags[3], tags[4], tags[5], CDicomReader::ImageChannel::RED);
+	this->OXYimages = reader->dcmimage_Mat(dcm_str.c_str(), this->outputOXYImagesDir, tags[2], tags[3], tags[4], tags[5], CDicomReader::ImageChannel::RED);
 
 	reader->~CDicomReader();
 }
+
+
+void photoAcoustic::exportDeOXYImages(string dicomPath) {
+
+	this->dicomPath = dicomPath;
+	string nameAndExt = experimental::filesystem::path(dicomPath).filename().generic_string();
+
+	size_t lastindex = nameAndExt.find_last_of(".");
+	this->filename = nameAndExt.substr(0, lastindex);
+	//create dir for all outputs
+	creatDirectories();
+
+	wstring dcm_str(dicomPath.length(), L' ');
+	copy(dicomPath.begin(), dicomPath.end(), dcm_str.begin());
+
+	CDicomReader* reader = new CDicomReader();
+	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags
+	this->deOXYimages = reader->dcmimage_Mat(dcm_str.c_str(), this->outputDeOXYImagesDir, tags[2], tags[3], tags[4], tags[5], CDicomReader::ImageChannel::BLUE);
+
+	reader->~CDicomReader();
+}
+
 
 void photoAcoustic::thicknessExtraction(int frame) {
 	if (frame == 0) {
@@ -71,7 +97,7 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 	double yspace = tags[1] * 10;
 
 	Mat OXYImage, edge_OXY, red_PA;
-	OXYImage = this->images[frame];
+	OXYImage = this->OXYimages[frame];
 	bilateralFilter(OXYImage, red_PA, 9, 75, 75);
 	//threshold(red_PA, red_PA, 100, 255, THRESH_BINARY);
 	Canny(red_PA, edge_OXY, 90, 270, 3);
@@ -291,6 +317,78 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 }
 
 
+void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours){
+
+	Point2f imageCenter;
+
+	imageCenter.x = (this->tags[3] - this->tags[2]) / 2; //center_x = (Xmax - Xmin)/2
+	imageCenter.y = (this->tags[5] - this->tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
+
+
+	double xspace = this->tags[0] * 10;
+	double yspace = this->tags[1] * 10;
+	
+
+	
+	for (int i = 0; i < bladderContours.size(); i++) {
+		
+		bladderContours[i] = smoothContour(bladderContours[i], 100);
+		thicknessContours[i] = smoothContour(thicknessContours[i], 100);
+		
+		
+		Mat image_OXY, image_DeOXY, black, resultOXY, resultDeOXY;
+		image_OXY = this->OXYimages[i + this->initialFrame];
+		image_DeOXY = this->deOXYimages[i + this->initialFrame];
+	
+		black = Mat::zeros(image_OXY.size(), image_OXY.type());
+		
+		vector<Point>  rounded_thicknessContoursPoint;
+		vector<Point>  rounded_bladderContoursPoint;
+		for (int j = 0; j < bladderContours[i].size(); j++) {
+			rounded_thicknessContoursPoint.push_back(Point(round(thicknessContours[i][j].x), round(thicknessContours[i][j].y)));
+			rounded_bladderContoursPoint.push_back(Point(round(bladderContours[i][j].x), round(bladderContours[i][j].y)));
+		}
+
+		fillPoly(black, rounded_thicknessContoursPoint, Scalar(255, 255, 255));
+		bitwise_and(black, image_OXY, resultOXY);
+		bitwise_and(black, image_DeOXY, resultDeOXY);
+
+		fillPoly(resultOXY, rounded_bladderContoursPoint, Scalar(0, 0, 0));
+		fillPoly(resultDeOXY, rounded_bladderContoursPoint, Scalar(0, 0, 0));
+
+		String  aa = String("C:/Users/Legion Y540/Desktop/mlk/" + to_string(i)) + ".bmp";
+
+		imwrite(aa, resultOXY);
+
+
+		Mat OXYPixels, DeOXYPixels;   // output, locations of non-zero pixels
+
+		findNonZero(resultOXY, OXYPixels);
+		findNonZero(resultDeOXY, DeOXYPixels);
+
+		for (int k = 0; k < OXYPixels.total(); k++) {
+			this->OXYPoints.push_back(Point3f((OXYPixels.at<Point>(k).x - imageCenter.x) * xspace, (OXYPixels.at<Point>(k).y - imageCenter.y) * yspace, this->distanceBetweenFrames * i));
+		}
+
+		for (int k = 0; k < DeOXYPixels.total(); k++) {
+			this->DeOXYPoints.push_back(Point3f((DeOXYPixels.at<Point>(k).x - imageCenter.x) * xspace, (DeOXYPixels.at<Point>(k).y - imageCenter.y) * yspace, this->distanceBetweenFrames * i));
+		}
+
+		image_OXY.release();
+		image_DeOXY.release();
+		black.release();
+		resultOXY.release();
+		resultDeOXY.release();
+		OXYPixels.release();
+		DeOXYPixels.release();
+		vector<Point>().swap(rounded_thicknessContoursPoint);
+		vector<Point>().swap(rounded_bladderContoursPoint);
+
+	}
+}
+//void extractDeOXYPoints(vector<vector<Point2f>> thicknessContours);
+
+
 void photoAcoustic::writeThicknessPoints() {
 	Mat OXYImage;
 	vector<Point2f> thicknessPoints;
@@ -302,7 +400,7 @@ void photoAcoustic::writeThicknessPoints() {
 		ofstream fileThickness;
 
 		thicknessPoints = this->finalThicknessPoints[k - initialFrame];
-		OXYImage = this->images[k].clone();
+		OXYImage = this->OXYimages[k].clone();
 
 		for (int i = 0; i < thicknessPoints.size(); i++) {
 			fileThickness << this->thicknessPoints[frame][i].x << " " << this->thicknessPoints[frame][i].y << endl;
