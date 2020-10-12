@@ -61,7 +61,8 @@ public:
 
 	string triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
 	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type); //string path
-	string findPixelsArePlacedIntoGeometries(vector<Point3f> pixels3D, STLType type);
+	string findPixelsArePlacedIntoGeometries(vector<vector<Point3f>> pixels3D, STLType type);
+	string findPixelsArePlacedIntoGeometries2(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
 
 	void setStudyDir(string studyDir) {
 		this->studyDir = studyDir;

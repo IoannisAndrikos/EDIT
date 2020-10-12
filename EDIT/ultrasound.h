@@ -51,7 +51,7 @@ public:
 
 	void processing(int initialFrame, int lastFrame, cv::Point clickPoint); //cropping and filtering //vector<vector<Point2f>>
 	void finalizePoints(vector<vector<Point2f>> p);
-	void extractSkinPoints();
+	void extractSkinPoints(vector<vector<Point2f>> bladderPoints);
 	void writePointsAndImages();
 
 
@@ -149,7 +149,6 @@ private:
 	ResultOfProcess centerAndPointsOfContour(Mat processed, vector<Point2f> *points, Point2f *center, cv::Point *highestWhitePixel = &cv::Point(0,0));
 	void sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f *center, Mat image, int skinDistance);
 	int findLongestVector(vector<vector<cv::Point>> vec);
-	double calculateLumenArea(vector<Point2f> points);
 
 
 	void LoggerMessage(string message) {

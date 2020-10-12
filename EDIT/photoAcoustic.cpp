@@ -1,6 +1,12 @@
 #pragma once
 #include "photoAcoustic.h"
 
+struct sortclass {
+	bool operator() (cv::Point2f pt1, cv::Point2f pt2) {
+		return (pt1.y < pt2.y); 
+	}
+} sortPolar;
+
 
 photoAcoustic::photoAcoustic() {
 }
@@ -102,20 +108,14 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 	//threshold(red_PA, red_PA, 100, 255, THRESH_BINARY);
 	Canny(red_PA, edge_OXY, 90, 270, 3);
 
-	//cout << "---------------------------------> " << frame - this->initialFrame << endl;
-	//cout << this->lumenPoints.size() << endl;
-
-
 	vector<Point2f> bladder;// = this->lumenPoints[frame - this->initialFrame]; //--------------------------->??????
 	if (type == totalSequenceOrCorrecton::TOTAL) {
-		//bladder = this->lumenPoints[frame - this->initialFrame];
 		convexHull(this->lumenPoints[frame - this->initialFrame], bladder, true);
 
 		bladder.push_back(bladder[0]);
 		bladder = smoothContour(bladder, 100);
 	}
 	else {
-		//interpolatePointsOfContourIsGoingToBeFixed();
 		convexHull(this->contourForFix, bladder, true);
 		vector<Point2f>().swap(this->contourForFix);
 		bladder.push_back(bladder[0]);
@@ -125,10 +125,7 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 	Point2f center = findCenterOfContour(bladder);
 
 	//shift bladder points to (0,0)
-	for (int i = 0; i < bladder.size(); i++) {
-		bladder[i].x -= center.x;
-		bladder[i].y -= center.y;
-	}
+	transform(bladder.begin(), bladder.end(), bladder.begin(), std::bind2nd(std::minus<Point2f>(), center));
 
 	//convert to polar
 	Mat xpts(bladder.size(), 1, CV_32F, &bladder[0].x, 2 * sizeof(float));
@@ -154,6 +151,7 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 	Mat xnew, ynew;
 	polarToCart(mag, ang, xnew, ynew);
 	vector<Point> expantedBladder;
+
 
 	for (int j = 0; j < polarXY_outer.size(); j++) {
 		expantedBladder.push_back(Point(xnew.at<float>(j) + center.x, ynew.at<float>(j) + center.y));
@@ -183,6 +181,7 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 			vector<int> potencialPositionsBasedOnPixelCount;
 			vector<Point2f> coordinates(it.count);
 
+
 			int intensityCount = 0;
 			int countPixel = 0;
 			for (int j = 0; j < it.count; j++) 
@@ -190,6 +189,7 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 				Vec3b intensity = Vec3b(*it);
 				Vec3b intensityBil = Vec3b(*itBil);
 				if ((int)intensity.val[1] > 0) {
+
 					double dist = sqrt(pow(countPixel * xspace, 2) + pow(countPixel * yspace, 2));
 					if (dist > this->maxThickness) {
 						//cout << "greated than maxThickness" << endl;
@@ -201,31 +201,28 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 						potencialPositionsBasedOnPixelCount.push_back(countPixel);
 					}
 				}
+
 				if ((int)intensityBil.val[1] < 10) {
 					intensityCount = 0;
 				}
 				intensityCount += (int)intensityBil.val[1];
-			//	cout << (int)intensityBil.val[1] << endl;
 				it++;
 				itBil++;
 				countPixel++;
 			}
-
-
 			if (!potencialPositionsBasedOnIntesityCount.empty()) {
 				int IndexOfmax_1 = max_element(potencialPositionsBasedOnIntesityCount.begin(), potencialPositionsBasedOnIntesityCount.end()) - potencialPositionsBasedOnIntesityCount.begin();
-
 				Point winner = potencialPositions[IndexOfmax_1];
 				thicknessPoints[i] = winner;
-				double distance = potencialPositionsBasedOnPixelCount[IndexOfmax_1];//sqrt(pow(winner.x - bladder[i].x, 2) + pow(winner.y - bladder[i].y, 2));
 
+				double distance = potencialPositionsBasedOnPixelCount[IndexOfmax_1];//sqrt(pow(winner.x - bladder[i].x, 2) + pow(winner.y - bladder[i].y, 2));
 				distances[i] = distance;
 				count++;
 				//cout << "---->Distance: " << distance << endl;
 				meanDistance += distance;
 
 			}
-			
+
 			vector<Point2f>().swap(potencialPositions);
 			vector<int>().swap(potencialPositionsBasedOnIntesityCount);
 			vector<int>().swap(potencialPositionsBasedOnPixelCount);
@@ -237,7 +234,7 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 
 	}
 
-	meanDistance /= count;
+	(count != 0) ? meanDistance /= count : meanDistance = 0;
 
 	int countNew = 0;
 	int newMeanDistance = 0;
@@ -252,8 +249,8 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 			thicknessPoints[j] = Point2f(0.0, 0.0);
 		}
 	}
-	newMeanDistance /= countNew;
 
+	(countNew != 0) ? newMeanDistance /= countNew : newMeanDistance = 0;
 
 	//---------------------------MEAN TICKNESS-------------------
 	for (int i = 0; i < outer_mean.size(); i++) {
@@ -284,13 +281,7 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 		if (thicknessPoints[j] == Point2f(0.0, 0.0)) {
 			thicknessPoints[j] = meanThickness[j];
 		}
-		//OXYImage.at<uchar>(thicknessPoints[j].y, thicknessPoints[j].x) = 255;
 	}
-
-	////String pathbmp = this->outputSegmentedImagesDir + "/" + to_string(frame) + ".bmp";
-	//String pathbmp = this->outputSegmentedImagesDir + "/" + to_string(frame) + ".bmp";
-	//imwrite(pathbmp, OXYImage);
-
 	if (type == totalSequenceOrCorrecton::TOTAL) {
 		this->thicknessPoints.push_back(smoothContour(thicknessPoints, 0));
 	}
@@ -298,7 +289,6 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 		this->contourForFix = smoothContour(thicknessPoints, 0);
 		this->thicknessPoints[frame - this->initialFrame] = this->contourForFix;
 	}
-
 
 	//some memory release
 	OXYImage.release();
@@ -317,30 +307,41 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 }
 
 
-void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours){
+void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type){
+
+	if (type == Point3DType::OXY) {
+		vector<vector<Point3f>>().swap(this->OXYPoints);
+	}
+	else if (type == Point3DType::DeOXY) {
+		vector<vector<Point3f>>().swap(this->DeOXYPoints);
+	}
+
 
 	Point2f imageCenter;
 
 	imageCenter.x = (this->tags[3] - this->tags[2]) / 2; //center_x = (Xmax - Xmin)/2
 	imageCenter.y = (this->tags[5] - this->tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
-
-
 	double xspace = this->tags[0] * 10;
 	double yspace = this->tags[1] * 10;
 	
 
-	
 	for (int i = 0; i < bladderContours.size(); i++) {
 		
 		bladderContours[i] = smoothContour(bladderContours[i], 100);
 		thicknessContours[i] = smoothContour(thicknessContours[i], 100);
+
+		Mat image, black, result;
+
+		if (type == Point3DType::OXY) {
+			image = this->OXYimages[i + this->initialFrame];
+		}
+		else if (type == Point3DType::DeOXY) {
+			image = this->deOXYimages[i + this->initialFrame];
+		}
 		
-		
-		Mat image_OXY, image_DeOXY, black, resultOXY, resultDeOXY;
-		image_OXY = this->OXYimages[i + this->initialFrame];
-		image_DeOXY = this->deOXYimages[i + this->initialFrame];
-	
-		black = Mat::zeros(image_OXY.size(), image_OXY.type());
+		threshold(image, image, 100, 255, THRESH_BINARY);
+
+		black = Mat::zeros(image.size(), image.type());
 		
 		vector<Point>  rounded_thicknessContoursPoint;
 		vector<Point>  rounded_bladderContoursPoint;
@@ -350,43 +351,162 @@ void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderCont
 		}
 
 		fillPoly(black, rounded_thicknessContoursPoint, Scalar(255, 255, 255));
-		bitwise_and(black, image_OXY, resultOXY);
-		bitwise_and(black, image_DeOXY, resultDeOXY);
+		bitwise_and(black, image, result);
 
-		fillPoly(resultOXY, rounded_bladderContoursPoint, Scalar(0, 0, 0));
-		fillPoly(resultDeOXY, rounded_bladderContoursPoint, Scalar(0, 0, 0));
-
-		String  aa = String("C:/Users/Legion Y540/Desktop/mlk/" + to_string(i)) + ".bmp";
-
-		imwrite(aa, resultOXY);
+		fillPoly(result, rounded_bladderContoursPoint, Scalar(0, 0, 0));
 
 
-		Mat OXYPixels, DeOXYPixels;   // output, locations of non-zero pixels
+		Mat Pixels;   // output, locations of non-zero pixels
 
-		findNonZero(resultOXY, OXYPixels);
-		findNonZero(resultDeOXY, DeOXYPixels);
+		findNonZero(result, Pixels);
 
-		for (int k = 0; k < OXYPixels.total(); k++) {
-			this->OXYPoints.push_back(Point3f((OXYPixels.at<Point>(k).x - imageCenter.x) * xspace, (OXYPixels.at<Point>(k).y - imageCenter.y) * yspace, this->distanceBetweenFrames * i));
+		vector<Point3f> FramePoints;
+
+
+		for (int k = 0; k < Pixels.total(); k++) {
+			FramePoints.push_back(Point3f((Pixels.at<Point>(k).x - imageCenter.x) * xspace, (Pixels.at<Point>(k).y - imageCenter.y) * yspace, this->distanceBetweenFrames * i));
 		}
 
-		for (int k = 0; k < DeOXYPixels.total(); k++) {
-			this->DeOXYPoints.push_back(Point3f((DeOXYPixels.at<Point>(k).x - imageCenter.x) * xspace, (DeOXYPixels.at<Point>(k).y - imageCenter.y) * yspace, this->distanceBetweenFrames * i));
+		if (type == Point3DType::OXY) {
+			this->OXYPoints.push_back(FramePoints);
+		}
+		else if (type == Point3DType::DeOXY) {
+			this->DeOXYPoints.push_back(FramePoints);
 		}
 
-		image_OXY.release();
-		image_DeOXY.release();
+		image.release();
 		black.release();
-		resultOXY.release();
-		resultDeOXY.release();
-		OXYPixels.release();
-		DeOXYPixels.release();
+		result.release();
+		Pixels.release();;
+		vector<Point3f>().swap(FramePoints);
 		vector<Point>().swap(rounded_thicknessContoursPoint);
 		vector<Point>().swap(rounded_bladderContoursPoint);
-
 	}
 }
-//void extractDeOXYPoints(vector<vector<Point2f>> thicknessContours);
+
+
+
+void photoAcoustic::extractOXYandDeOXYPoints2(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type) {
+
+	vector<vector<Point3f>>().swap(notSharderPoints);
+	vector<vector<vector<Point3f>>>().swap(sharderPoints);
+	vector<vector<vector<Point3f>>>().swap(interpolatedPoints);
+
+	auto comp = [](const Point3f& lhs, const Point3f& rhs) {return ((lhs.x == rhs.x) && (lhs.y == rhs.y)); };
+
+	for (int i = 0; i < bladderContours.size() - 1; i++) {
+
+		//i-th frame
+		Mat imageFrameB;
+
+		if (type == Point3DType::OXY) {
+			imageFrameB = this->OXYimages[i + 1 + this->initialFrame];
+		}
+		else if (type == Point3DType::DeOXY) {
+			imageFrameB = this->deOXYimages[i + 1 + this->initialFrame];
+		}
+
+		vector<Point3f> Frame1Points3D;
+		if (i == 0) {
+			Mat imageFrameA;
+			if (type == Point3DType::OXY) {
+				imageFrameA = this->OXYimages[i + this->initialFrame];
+			}
+			else if (type == Point3DType::DeOXY) {
+				imageFrameA = this->deOXYimages[i + this->initialFrame];
+			}
+			bladderContours[i] = smoothContour(bladderContours[i], 100);
+			thicknessContours[i] = smoothContour(thicknessContours[i], 100);
+			Frame1Points3D = findPixelsBetweenThicknessAndBladder(imageFrameA, bladderContours[i], thicknessContours[i], i);
+			imageFrameA.release();
+		}
+		else {
+			Frame1Points3D = this->alreadProcessedFramePoints3D;
+		}
+		bladderContours[i + 1] = smoothContour(bladderContours[i + 1], 100);
+		thicknessContours[i + 1] = smoothContour(thicknessContours[i + 1], 100);
+		vector<Point3f> Frame2Points3D = findPixelsBetweenThicknessAndBladder(imageFrameB, bladderContours[i+1], thicknessContours[i+1], i+1);
+		vector<Point3f>().swap(alreadProcessedFramePoints3D);
+		this->alreadProcessedFramePoints3D = Frame2Points3D;
+
+		vector<Point3f> sharedPoints;
+
+		set_union(Frame1Points3D.begin(), Frame1Points3D.end(), Frame2Points3D.begin(), Frame2Points3D.end(), std::back_inserter(sharedPoints), comp);
+		
+		//------------------------------------------------------------------------------------------
+		
+		vector<vector<Point3f>> frameSharedPoints;
+		vector<vector<Point3f>> frameInterpolationPointsPoints;
+		double lower, upper;
+		for (int k = 0; k < sharedPoints.size(); k++) {
+			vector<Point3f> coupleOfSharedPoints;
+			coupleOfSharedPoints.push_back(Point3f(sharedPoints[k].x, sharedPoints[k].y, this->distanceBetweenFrames * i));
+			coupleOfSharedPoints.push_back(Point3f(sharedPoints[k].x, sharedPoints[k].y, this->distanceBetweenFrames * (i+1)));
+			frameSharedPoints.push_back(coupleOfSharedPoints);
+			vector<Point3f>().swap(coupleOfSharedPoints);
+
+			vector<Point3f> interpolationPoints;
+
+			lower = (this->distanceBetweenFrames * i) + 0.05;
+			upper = (this->distanceBetweenFrames * (i + 1));
+
+			for (double s = lower; s < upper; s = s + 0.05) {
+				interpolationPoints.push_back(Point3f(sharedPoints[k].x, sharedPoints[k].y, s));
+			}
+			//-----------------------
+			frameInterpolationPointsPoints.push_back(interpolationPoints);
+			vector<Point3f>().swap(interpolationPoints);
+		}
+
+		if (sharedPoints.size() == 0) {
+			frameSharedPoints.push_back(vector<Point3f>());
+			frameInterpolationPointsPoints.push_back(vector<Point3f>());
+		}
+
+		this->notSharderPoints.push_back(Frame1Points3D);
+		this->sharderPoints.push_back(frameSharedPoints);
+		this->interpolatedPoints.push_back(frameInterpolationPointsPoints);
+
+		imageFrameB.release();
+		vector<Point3f>().swap(sharedPoints);
+		vector<Point3f>().swap(Frame1Points3D);
+		vector<Point3f>().swap(Frame2Points3D);
+		vector<vector<Point3f>>().swap(frameSharedPoints);
+		vector<vector<Point3f>>().swap(frameInterpolationPointsPoints);
+		
+	}
+}
+
+vector<Point3f> photoAcoustic::findPixelsBetweenThicknessAndBladder(Mat image, vector<Point2f> bladderContours, vector<Point2f> thicknessContours, int iter) {
+	
+	Mat black, result;
+	threshold(image, image, 100, 255, THRESH_BINARY);
+	black = Mat::zeros(image.size(), image.type());
+
+	vector<Point>  rounded_thicknessContoursPoint;
+	vector<Point>  rounded_bladderContoursPoint;
+	for (int j = 0; j < bladderContours.size(); j++) {
+		rounded_thicknessContoursPoint.push_back(Point(round(thicknessContours[j].x), round(thicknessContours[j].y)));
+		rounded_bladderContoursPoint.push_back(Point(round(bladderContours[j].x), round(bladderContours[j].y)));
+	}
+	fillPoly(black, rounded_thicknessContoursPoint, Scalar(255, 255, 255));
+	bitwise_and(black, image, result);
+	fillPoly(result, rounded_bladderContoursPoint, Scalar(0, 0, 0));
+	Mat Pixels;   // output, locations of non-zero pixels
+	findNonZero(result, Pixels);
+	vector<Point3f> Frame1Points3D;
+	for (int k = 0; k < Pixels.total(); k++) {
+		Frame1Points3D.push_back(Point3f((Pixels.at<Point>(k).x - this->imageCenter.x) * this->xspace, (Pixels.at<Point>(k).y - this->imageCenter.y) * this->yspace, this->distanceBetweenFrames * iter));
+	}
+
+	black.release();
+	result.release();
+	Pixels.release();
+	vector<Point>().swap(rounded_thicknessContoursPoint);
+	vector<Point>().swap(rounded_bladderContoursPoint);
+
+	return Frame1Points3D;
+}
 
 
 void photoAcoustic::writeThicknessPoints() {
@@ -418,11 +538,7 @@ void photoAcoustic::writeThicknessPoints() {
 
 
 Point2f photoAcoustic::findCenterOfContour(vector<Point2f> contour) {
-	Point2f center = { 0.0 , 0.0 };
-	for (int i = 0; i < contour.size(); i++) {
-		center.x += contour[i].x;
-		center.y += contour[i].y;
-	}
+	Point2f center = accumulate(contour.begin(), contour.end(), Point2f(0.0, 0.0));
 	center.x /= contour.size();
 	center.y /= contour.size();
 
@@ -432,7 +548,8 @@ Point2f photoAcoustic::findCenterOfContour(vector<Point2f> contour) {
 void photoAcoustic::finalizeAllThicknessContours (vector<vector<Point2f>> thicknessContours) {
 	vector<vector<Point2f>>().swap(finalThicknessPoints);
 	for (int i = 0; i < thicknessContours.size(); i++) {
-		this->finalThicknessPoints.push_back(smoothContour(thicknessContours[i], 100));
+		//this->finalThicknessPoints.push_back(smoothContour(thicknessContours[i], 100));
+		this->finalThicknessPoints.push_back(sortUsingPolarCoordinates(thicknessContours[i], 100));
 	}	
 }
 
@@ -465,6 +582,62 @@ vector<Point2f> photoAcoustic::smoothContour(vector<Point2f> contour, int num_sp
 	return contour;
 }
 
+vector<Point2f> photoAcoustic::sortUsingPolarCoordinates(vector<Point2f> p, int num_spline) {
+
+	Point2f center = accumulate(p.begin(), p.end(), Point2f(0.0, 0.0));
+	center.x /= p.size();
+	center.y /= p.size();
+
+	transform(p.begin(), p.end(),
+		p.begin(), std::bind2nd(std::minus<Point2f>(), center));
+
+	Mat xpts(p.size(), 1, CV_32F, &p[0].x, 2 * sizeof(float));
+	Mat ypts(p.size(), 1, CV_32F, &p[0].y, 2 * sizeof(float));
+
+	Mat magnitude, angle;
+	cartToPolar(xpts, ypts, magnitude, angle);
+
+	vector<Point2f> polarXY;
+	for (int i = 0; i < p.size(); i++) {
+		polarXY.push_back(Point2f(magnitude.at<Float32>(i), angle.at<Float32>(i)));
+	}
+
+	sort(polarXY.begin(), polarXY.end(), sortPolar);
+
+	Mat mag(polarXY.size(), 1, CV_32F, &polarXY[0].x, 2 * sizeof(float));
+	Mat ang(polarXY.size(), 1, CV_32F, &polarXY[0].y, 2 * sizeof(float));
+
+	Mat xnew, ynew, xnewSkin, ynewSkin;
+	polarToCart(mag, ang, xnew, ynew);
+
+	vector<Point2f> pp;
+
+	for (int i = 0; i < p.size(); i++) {
+		pp.push_back(Point2f(xnew.at<Float32>(i), ynew.at<Float32>(i)));
+	}
+
+	pp.push_back(pp[0]);
+
+	vector<Point2f>().swap(p);
+	p = smoothContour(pp, num_spline); //num_spline = 50;
+
+	transform(p.begin(), p.end(), p.begin(), std::bind2nd(std::plus<Point2f>(), center));
+
+	xpts.release();
+	ypts.release();
+	mag.release();
+	ang.release();
+	xnew.release();
+	ynew.release();
+	xnewSkin.release();
+	ynewSkin.release();
+	vector<Point2f>().swap(polarXY);
+	vector<Point2f>().swap(pp);
+	
+	LoggerMessage("Sorting based polar coordinates was performed successfully!");
+
+	return p;
+}
 
 
 // Cubic spline interpolation to smooth centerline

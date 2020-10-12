@@ -183,9 +183,21 @@ namespace EDITProcessor {
 			 return msclr::interop::marshal_as<System::String^>(STLPath);
 		 }
 
-		 System::String ^extractSkinSTL(bool fillHoles) {
+		 System::String ^extractSkinSTL(List<List<EDITCore::CVPoint^>^>^ bladderPoints, bool fillHoles) {
+			 vector<double> Tags = ultr->getTags();
 			 proc->fillHoles = fillHoles;
-			 ultr->extractSkinPoints();
+			 proc->xspace = Tags[0] * 10;
+			 proc->yspace = Tags[1] * 10;
+			 proc->distanceBetweenFrames = 0.203;
+			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
+			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
+
+			 string stydyDir = ultr->getStudyDir();
+			 proc->setStudyDir(stydyDir);
+
+			 proc->fillHoles = fillHoles;
+			 ultr->extractSkinPoints(listPointsToVectorPoints(bladderPoints));
+			 freeMemory(bladderPoints);
 			 vector<vector<Point2f>> skinPoints = ultr->getSkinPoints();
 			 string STLPath = proc->triangulation(skinPoints, process_3D::STLType::SKIN);
 			 return msclr::interop::marshal_as<System::String^>(STLPath);
@@ -272,11 +284,23 @@ namespace EDITProcessor {
 
 
 		 List<System::String^>^ extractOXYandDeOXYPoints(List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
-			photo-> distanceBetweenFrames = 0.203;
-			photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints));
 
-			string OXYPath = proc->findPixelsArePlacedIntoGeometries(photo->getOXYPoints(), process_3D::STLType::OXY);
-			string DeOXYPath = proc->findPixelsArePlacedIntoGeometries(photo->getDeOXYPoints(), process_3D::STLType::DeOXY);
+			 vector<double> Tags = photo->getTags();
+			 photo->xspace = Tags[0] * 10;
+			 photo->yspace = Tags[1] * 10;
+			 photo->distanceBetweenFrames = 0.203;
+			 photo->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
+			 photo->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
+			//photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::OXY);
+			//photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::DeOXY);
+
+			//string OXYPath = proc->findPixelsArePlacedIntoGeometries(photo->getOXYPoints(), process_3D::STLType::OXY);
+			//string DeOXYPath = proc->findPixelsArePlacedIntoGeometries(photo->getDeOXYPoints(), process_3D::STLType::DeOXY);
+			
+			photo->extractOXYandDeOXYPoints2(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::OXY);
+			string OXYPath = proc->findPixelsArePlacedIntoGeometries2(photo->getSharderPoints(), photo->getInterpolatedPoints(), process_3D::STLType::OXY);
+			photo->extractOXYandDeOXYPoints2(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::DeOXY);
+			string DeOXYPath = proc->findPixelsArePlacedIntoGeometries2(photo->getSharderPoints(), photo->getInterpolatedPoints(), process_3D::STLType::DeOXY);
 
 			 List<System::String^> ^paths = gcnew List<System::String^>();
 			 paths->Add(msclr::interop::marshal_as<System::String^>(OXYPath));

@@ -39,11 +39,14 @@ public:
 	photoAcoustic(); //constructor
 	~photoAcoustic(); //destructor
 
+	enum Point3DType { OXY, DeOXY };
+
 	void exportOXYImages(string dicomPath);
 	void exportDeOXYImages(string dicomPath);
 	void thicknessExtraction(int frame = 0); //frame = 0 means that the process will be performed for all photoAcoustic sequenence
 	void finalizeAllThicknessContours(vector<vector<Point2f>> thicknessContours);
-	void extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours);
+	void extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type);
+	void extractOXYandDeOXYPoints2(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type);
 	void writeThicknessPoints();
 
 	void setMainOutputDirectory(string mainOutputDirectory) {
@@ -116,12 +119,24 @@ public:
 		return finalThicknessPoints;
 	}
 
-	vector<Point3f> getOXYPoints() {
+	vector<vector<Point3f>> getOXYPoints() {
 		return OXYPoints;
 	}
 
-	vector<Point3f> getDeOXYPoints() {
+
+	vector<vector<Point3f>> getDeOXYPoints() {
 		return DeOXYPoints;
+	}
+
+	vector<vector<Point3f>> getNotSharderPoints() {
+		return notSharderPoints;
+	}
+
+	vector<vector<vector<Point3f>>> getSharderPoints() {
+		return sharderPoints;
+	}
+	vector<vector<vector<Point3f>>> getInterpolatedPoints() {
+		return interpolatedPoints;
 	}
 
 	//------------------------------------------THESE SHOULD BE GIVEN BY ULTRASOUND PART---------------------------
@@ -165,6 +180,11 @@ public:
 	int pixelDistance = 40;
 	double distanceBetweenFrames = 0.203;
 
+	Point2f imageCenter;
+	double xspace;
+	double yspace;
+	
+
 
 private:
 	//functions
@@ -174,6 +194,9 @@ private:
 	vector<Point2f> smoothContour(vector<Point2f> contour, int num_spline = 0);
 	vector<Point2f> smoothCurve(vector<vector<vector<double>>> centerline, int num_spline = 0);
 	Point2f findCenterOfContour(vector<Point2f> contour);
+	vector<Point3f> findPixelsBetweenThicknessAndBladder(Mat image, vector<Point2f> bladderContours, vector<Point2f> thicknessContours, int iter);
+	vector<Point2f> sortUsingPolarCoordinates(vector<Point2f> p, int num_spline);
+
 
 	void LoggerMessage(string message) {
 		if (this->logFile.is_open()) this->logFile << " --> " << message << endl;
@@ -191,7 +214,11 @@ private:
 	string filename;
 	vector<Mat> OXYimages;
 	vector<Mat> deOXYimages;
-	vector<Point3f> OXYPoints, DeOXYPoints;
+	vector<vector<Point3f>> OXYPoints, DeOXYPoints;
+	vector<Point3f> alreadProcessedFramePoints3D;
+	vector<vector<Point3f>> notSharderPoints;
+	vector<vector<vector<Point3f>>> sharderPoints;
+	vector<vector<vector<Point3f>>> interpolatedPoints;
 	vector<double> tags;
 	int initialFrame;
 	int lastFrame;

@@ -15,9 +15,6 @@ bool Longest(const std::vector<Point>& lhs, const std::vector<Point>& rhs)
 	return lhs.size() < rhs.size();
 }
 
-
-//vector<vector<Point2f>> preprocessing(int initialFrame, int lastFrame, Point clickPoint); //cropping and filtering
-
 ultrasound::ultrasound() {}
 ultrasound::~ultrasound() {}
 
@@ -97,7 +94,6 @@ template<class T> morphsnakes::NDImage<T, 2> cimg2ndimage(CImg<T>& img)
 }
 
 void ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint) {
-
 
 	vector<vector<Point2f>>().swap(this->lumenPoints);
 	vector<vector<Point2f>>().swap(this->skinPoints);
@@ -193,20 +189,12 @@ void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
 	vector<vector<Point2f>>().swap(lumenPoints);
 	for (int i = 0; i < points.size(); i++) {
 	
-		Point2f center = { 0.0, 0.0 };
-
-		for (int j = 0; j < points[i].size(); j++) {
-			center.x += points[i][j].x;
-			center.y += points[i][j].y;
-		}
+		Point2f center = accumulate(points[i].begin(), points[i].end(), Point2f(0.0, 0.0));
 		center.x /= points[i].size();
 		center.y /= points[i].size();
 
+		transform(points[i].begin(), points[i].end(), points[i].begin(), std::bind2nd(std::minus<Point2f>(), center));
 
-		for (int j = 0; j<points[i].size(); j++) {
-			points[i][j].x -= center.x;
-			points[i][j].y -= center.y;
-		}
 
 		Mat xpts(points[i].size(), 1, CV_32F, &points[i][0].x, 2 * sizeof(float));
 		Mat ypts(points[i].size(), 1, CV_32F, &points[i][0].y, 2 * sizeof(float));
@@ -226,15 +214,12 @@ void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
 		for (int j = 0; j<points[i].size(); j++) {
 			pp.push_back(Point2f(xnew.at<Float32>(j), ynew.at<Float32>(j)));
 		}
-		vector<Point2f> smothed = smoothCurve(sortBasedEuclideanDistance(pp), 100); //num_spline = 100
+		vector<Point2f> smoothed = smoothCurve(sortBasedEuclideanDistance(pp), 100); //num_spline = 100
 
-		for (int j = 0; j < smothed.size(); j++) { //p.size()
-			smothed[j].x = smothed[j].x + center.x;
-			smothed[j].y = smothed[j].y + center.y;
-		}
-		this->lumenPoints.push_back(smothed);
+		transform(smoothed.begin(), smoothed.end(), smoothed.begin(), std::bind2nd(std::plus<Point2f>(), center));
+		
+		this->lumenPoints.push_back(smoothed);
 	
-
 		xpts.release();
 		ypts.release();
 		mag.release();
@@ -243,49 +228,31 @@ void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
 		ynew.release();
 		vector<Point2f>().swap(polarXY);
 		vector<Point2f>().swap(pp);
-		vector<Point2f>().swap(smothed);
+		vector<Point2f>().swap(smoothed);
 	}
+	vector<vector<Point2f>>().swap(points);
 }
 
-double ultrasound::calculateLumenArea(vector<Point2f> points) {
-	for each (Point2f point in points)
-	{
-		point.x *= this->tags[0] * 10;
-		point.y *= this->tags[1] * 10;
-	}
+void ultrasound::extractSkinPoints(vector<vector<Point2f>> bladderPoints) {
 
-	return contourArea(points);			
-}
+	vector<vector<Point2f>>().swap(skinPoints);
+	finalizePoints(bladderPoints);
 
-
-
-void ultrasound::extractSkinPoints() {
 	this->skinPoints = this->getlumenPoints();
-
 	int imageCount = this->initialFrame;
 
 	for (int i = 0; i< skinPoints.size(); i++) {
 
-		Point2f center = { 0.0, 0.0 };
-
-		for (int j = 0; j < skinPoints[i].size(); j++) {
-			center.x += skinPoints[i][j].x;
-			center.y += skinPoints[i][j].y;
-
-		}
+		Point2f center = accumulate(skinPoints[i].begin(), skinPoints[i].end(), Point2f(0.0, 0.0));
 		center.x /= skinPoints[i].size();
 		center.y /= skinPoints[i].size();
 
-		for (int j = 0; j < skinPoints[i].size(); j++) {
-			skinPoints[i][j].x -= center.x;
-			skinPoints[i][j].y -= center.y;
-		}
+		transform(skinPoints[i].begin(), skinPoints[i].end(), skinPoints[i].begin(), std::bind2nd(std::minus<Point2f>(), center));
 
 		Mat xpts(skinPoints[i].size(), 1, CV_32F, &skinPoints[i][0].x, 2 * sizeof(float));
 		Mat ypts(skinPoints[i].size(), 1, CV_32F, &skinPoints[i][0].y, 2 * sizeof(float));
 		Mat magnitude, angle;
 		cartToPolar(xpts, ypts, magnitude, angle);
-
 
 		vector<Point2f> SkinPolarXY;
 		int index = 0;
@@ -332,24 +299,17 @@ void ultrasound::extractSkinPoints() {
 	polarToCart(mag, ang, xnew, ynew);
 	vector<Point2f> pp;
 
-
 	//cout << SkinPolarXY.size() << endl;
-
 	for (int j = 0; j < SkinPolarXY.size(); j++) {
 		pp.push_back(Point2f(xnew.at<Float32>(j) + center.x, ynew.at<Float32>(j) + center.y));
 		//images[imageCount].at<uchar>(round(ynew.at<Float32>(j) + center.y), round(xnew.at<Float32>(j) + center.x)) = 255;
 	}
 
-	vector<Point2f>().swap(skinPoints[i]);
+	vector<Point2f>().swap(this->skinPoints[i]);
 
-	skinPoints[i] = pp;
+	this->skinPoints[i] = pp;
 
 
-	/*line(image, Point(pp[index].x , pp[index].y), Point(pp[index].x , 0), cv::Scalar(255, 0, 0), 1);
-	namedWindow("window", 1);
-	imshow("window", image);
-	waitKey(0);
-*/
 	imageCount++;
 
 	//free memory
@@ -394,11 +354,8 @@ void ultrasound::writePointsAndImages() {
 
 void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f *center, Mat image, int skinDistance) {
 	
-	for (int i = 0; i < p->size(); i++) {
-		p->at(i).x -= center->x;
-		p->at(i).y -= center->y;
-	}
-	
+	transform(p->begin(), p->end(), p->begin(), std::bind2nd(std::minus<Point2f>(), *center));
+
 	Mat xpts(p->size(), 1, CV_32F, &p->at(0).x, 2 * sizeof(float));
 	Mat ypts(p->size(), 1, CV_32F, &p->at(0).y, 2 * sizeof(float));
 
@@ -424,15 +381,12 @@ void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f
 		pp.push_back(Point2f(xnew.at<Float32>(i), ynew.at<Float32>(i)));
 	}
 
-	vector<Point2f> smothed = smoothCurve(sortBasedEuclideanDistance(pp)); //num_spline = 50;
+	vector<Point2f> smoothed = smoothCurve(sortBasedEuclideanDistance(pp)); //num_spline = 50;
 
-	vector<Point2f> contour;
 
-	for (int i = 0; i < smothed.size(); i++) {
-		contour.push_back(Point2f(smothed[i].x + center->x, smothed[i].y + center->y));
-	}
+	transform(smoothed.begin(), smoothed.end(), smoothed.begin(), std::bind2nd(std::plus<Point2f>(), *center));
 
-	this->lumenPoints.push_back(contour);
+	this->lumenPoints.push_back(smoothed);
 
 	LoggerMessage("Bladder borders were detected successfully!");
 	
@@ -447,7 +401,6 @@ void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f
 
 	vector<Point2f>().swap(polarXY);
 	vector<Point2f>().swap(pp);
-	vector<Point2f>().swap(smothed);
 }
 
 
@@ -476,6 +429,7 @@ ultrasound::ResultOfProcess ultrasound::centerAndPointsOfContour(Mat processed, 
 	}
 	center->x /= whitePixels.total();
 	center->y /= whitePixels.total();
+
 
 	whitePixels.release();
 

@@ -172,17 +172,16 @@ string process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLTy
 }
 
 
-string process_3D::findPixelsArePlacedIntoGeometries(vector<Point3f> pixels3D, STLType type) {
+string process_3D::findPixelsArePlacedIntoGeometries(vector<vector<Point3f>> pixelsFrames, STLType type) {
 	
-	vector<Point3f> final_Points;
+	vector<vector<Point3f>> final_Points;
+	vector<int> pointSizePerFrame;
 
-	vtkSmartPointer<vtkPoints> points = vtkSmartPointer< vtkPoints >::New();
-	for (int i = 0; i < pixels3D.size(); i++) {
-		points->InsertNextPoint(pixels3D[i].x, pixels3D[i].y, pixels3D[i].z);
+	vector<Point3f> pixels3D;
+	for (int i = 0; i < pixelsFrames.size(); i++) {
+		pixels3D.insert(pixels3D.end(), pixelsFrames[i].begin(), pixelsFrames[i].end());
+		pointSizePerFrame.push_back(pixelsFrames[i].size());
 	}
-	
-	vtkSmartPointer<vtkPolyData> pointsPolydata = vtkSmartPointer<vtkPolyData>::New();
-	pointsPolydata->SetPoints(points);
 
 	// bladder
 	vtkSmartPointer <vtkSTLReader> readerThickness = vtkSmartPointer<vtkSTLReader>::New();
@@ -210,28 +209,182 @@ string process_3D::findPixelsArePlacedIntoGeometries(vector<Point3f> pixels3D, S
 	selectEnclosedPoints_bladder->Initialize(fillHolesFilterBladder->GetOutput());
 	//selectEnclosedPoints_bladder->Update();
 
-		
-	for (int i = 0; i < pixels3D.size(); i++) {
-		if(!selectEnclosedPoints_bladder->IsInsideSurface(pixels3D[i].x, pixels3D[i].y, pixels3D[i].z) && selectEnclosedPoints_thickness->IsInsideSurface(pixels3D[i].x, pixels3D[i].y, pixels3D[i].z)){
-			final_Points.push_back(pixels3D[i]);
+	//cout << "pointSizePerFrame Size: " << pointSizePerFrame.size() << endl;
+	//
+	//vector<vector<Point3f>> allframes;
+	//vector<Point3f> frame;
+
+	//int count = 0;
+	//int k = 0;
+	//for (int i = 0; i < pixels3D.size(); i++) {
+
+	////	cout << "k value: " << k << endl;
+
+	//	if(!selectEnclosedPoints_bladder->IsInsideSurface(pixels3D[i].x, pixels3D[i].y, pixels3D[i].z) && selectEnclosedPoints_thickness->IsInsideSurface(pixels3D[i].x, pixels3D[i].y, pixels3D[i].z)){
+	//		final_Points.push_back(pixels3D[i]);
+	//		frame.push_back(pixels3D[i]);
+	//	}
+	//	if (count == pointSizePerFrame[k]) {
+	//		allframes.push_back(frame);
+	//		vector<Point3f>().swap(frame);
+	//		count = 0;
+	//		k++;
+	//	}
+	//	count++;
+	//}
+
+
+	vector<vector<Point3f>> final_FramePoints;
+	vector<Point3f> FramePoints;
+	for (int i = 0; i < pixelsFrames.size(); i++) {
+		for (int j = 0; j < pixelsFrames[i].size(); j++) {
+			if (!selectEnclosedPoints_bladder->IsInsideSurface(pixelsFrames[i][j].x, pixelsFrames[i][j].y, pixelsFrames[i][j].z) && selectEnclosedPoints_thickness->IsInsideSurface(pixelsFrames[i][j].x, pixelsFrames[i][j].y, pixelsFrames[i][j].z)) {
+				FramePoints.push_back(pixelsFrames[i][j]);
+			}
+		}
+		final_Points.push_back(FramePoints);
+		final_FramePoints.push_back(FramePoints);
+		vector<Point3f>().swap(FramePoints);
+	}
+
+
+	cout << "final_FramePoints: " << final_FramePoints.size() << endl;
+
+
+
+	double precision = 0.0000001;
+
+	double threshold = 0.0500000001111111111111;
+	//vector<Point3f> interpolated_Points(final_Points.begin(), final_Points.end());
+	
+	//vector<Point3f> extrapoints;
+	//double x1, y1, z1;
+	//double x2, y2, z2;
+	//for (int i = 0; i < final_FramePoints.size()-1; i++) {
+	//	for (int j = 0; j < final_FramePoints[i].size(); j++) {
+	//		x1 = final_FramePoints[i][j].x;
+	//		y1 = final_FramePoints[i][j].y;
+	//		z1 = final_FramePoints[i][j].z;
+
+	//		x2 = final_FramePoints[i + 1][j].x;
+	//		y2 = final_FramePoints[i + 1][j].y;
+	//		z2 = final_FramePoints[i + 1][j].z;
+
+	//		/*double dist = sqrt(pow(x2 - x1, 2) + pow(y1 - y2, 2) + pow(z1 - z2, 2));*/
+	//		//if ((dist+ precision )< threshold) {
+	//			extrapoints.push_back(Point3f(x1, y1, (z1 + z2) / 2));
+	//		//}
+	//		
+
+	//		/*cout <<"ith " << final_FramePoints[i][j].x << " " << final_FramePoints[i][j].y << " " << final_FramePoints[i][j].z << endl;
+	//		cout << "ith+1 "<< final_FramePoints[i+1][j].x << " " << final_FramePoints[i+1][j].y << " " << final_FramePoints[i+1][j].z << endl;*/
+
+	//		//cout << x << " " << y << " " << z << endl;
+
+	//		//if (x == 0 && y == 0) {
+	//		//	extrapoints.push_back(Point3f(final_FramePoints[i][j].x, final_FramePoints[i][j].y, (final_FramePoints[i][j].z + final_FramePoints[i+1][j].z) / 2));
+	//		//	//cout << "MPHKE" << endl;
+	//		//}
+	//		////cout << "EDW" << i << j << endl;
+
+	//	}
+	//}
+	//final_Points.push_back(extrapoints);
+	
+	String txtFilename = this->outputObjectsDir + "/" + getSTLName(type) + ".txt";
+	ofstream txtfile;
+	txtfile.open(txtFilename);
+	for (int i = 0; i < final_Points.size(); i++) {
+		for (int j = 0; j < final_Points[i].size(); j++) {
+			txtfile << final_Points[i][j].x << " " << final_Points[i][j].y << " " << final_Points[i][j].z << endl;
 		}
 	}
+
+	/*for (int k = 0; k < interpolated_Points.size(); k++) {
+		txtfile << interpolated_Points[k].x << " " << interpolated_Points[k].y << " " << interpolated_Points[k].z << endl;
+	}*/
+
+	txtfile.close();
+
+	vector<vector<Point3f>>().swap(final_Points);
+	//vector<Point3f>().swap(interpolated_Points);
+
+	return txtFilename;
+}
+
+
+string process_3D::findPixelsArePlacedIntoGeometries2(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type) {
+
+
+	vector<Point3f> final_Points;
+
+	// bladder
+	vtkSmartPointer <vtkSTLReader> readerThickness = vtkSmartPointer<vtkSTLReader>::New();
+	readerThickness->SetFileName((this->thicknessGeometry).c_str());
+	readerThickness->Update();
+	vtkSmartPointer<vtkFillHolesFilter> fillHolesFilterThickness;
+	fillHolesFilterThickness = vtkSmartPointer<vtkFillHolesFilter>::New();
+	fillHolesFilterThickness->SetHoleSize(10000); //1E6
+	fillHolesFilterThickness->SetInputConnection(readerThickness->GetOutputPort());
+	fillHolesFilterThickness->Update();
+	vtkSmartPointer<vtkSelectEnclosedPoints> selectEnclosedPoints_thickness = vtkSmartPointer<vtkSelectEnclosedPoints>::New();
+	selectEnclosedPoints_thickness->Initialize(fillHolesFilterThickness->GetOutput());
+	//selectEnclosedPoints_thickness->Update();
+
+
+	vtkSmartPointer <vtkSTLReader> readerBladder = vtkSmartPointer<vtkSTLReader>::New();
+	readerBladder->SetFileName((this->bladderGeometry).c_str());
+	readerBladder->Update();
+	vtkSmartPointer<vtkFillHolesFilter> fillHolesFilterBladder;
+	fillHolesFilterBladder = vtkSmartPointer<vtkFillHolesFilter>::New();
+	fillHolesFilterBladder->SetHoleSize(10000); //1E6
+	fillHolesFilterBladder->SetInputConnection(readerBladder->GetOutputPort());
+	fillHolesFilterBladder->Update();
+	vtkSmartPointer<vtkSelectEnclosedPoints> selectEnclosedPoints_bladder = vtkSmartPointer<vtkSelectEnclosedPoints>::New();
+	selectEnclosedPoints_bladder->Initialize(fillHolesFilterBladder->GetOutput());
+
+
+	Point3f point1, point2;
+	int con1, con2;
+
+	for (int i = 0; i < sharderPixels.size(); i++) {
+		for (int j = 0; j < sharderPixels[i].size(); j++) {
+			/*if (!selectEnclosedPoints_bladder->IsInsideSurface(notSharderPixels[i][j].x, notSharderPixels[i][j].y, notSharderPixels[i][j].z) && selectEnclosedPoints_thickness->IsInsideSurface(notSharderPixels[i][j].x, notSharderPixels[i][j].y, notSharderPixels[i][j].z)) {
+				final_Points.push_back(notSharderPixels[i][j]);
+			}*/
+			if (!sharderPixels[i][j].empty()) {
+				point1 = sharderPixels[i][j][0];
+				point2 = sharderPixels[i][j][1];
+				con1 = (!selectEnclosedPoints_bladder->IsInsideSurface(point1.x, point1.y, point1.z) && selectEnclosedPoints_thickness->IsInsideSurface(point1.x, point1.y, point1.z));
+				con2 = (!selectEnclosedPoints_bladder->IsInsideSurface(point2.x, point2.y, point2.z) && selectEnclosedPoints_thickness->IsInsideSurface(point2.x, point2.y, point2.z));
+				if (con1 && con2) {
+					final_Points.insert(final_Points.end() ,interpolatedPixels[i][j].begin(), interpolatedPixels[i][j].end());
+					//final_Points.push_back(point1);
+					//final_Points.push_back(point2);
+				}
+			}
+		}
+	}
+
+	//some free memory
+	vector<vector<vector<Point3f>>>().swap(sharderPixels);
+	vector<vector<vector<Point3f>>>().swap(interpolatedPixels);
+
 
 	String txtFilename = this->outputObjectsDir + "/" + getSTLName(type) + ".txt";
 	ofstream txtfile;
 	txtfile.open(txtFilename);
-
-	for (int k = 0; k < final_Points.size(); k++) {
-		txtfile << final_Points[k].x << " " << final_Points[k].y << " " << final_Points[k].z << endl;
+	for (int i = 0; i < final_Points.size(); i++) {
+		txtfile << final_Points[i].x << " " << final_Points[i].y << " " << final_Points[i].z << endl;
 	}
 
 	txtfile.close();
 
 	vector<Point3f>().swap(final_Points);
+	//vector<Point3f>().swap(interpolated_Points);
 
 	return txtFilename;
 }
-
 
 
 
