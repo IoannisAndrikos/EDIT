@@ -1,6 +1,7 @@
 #include "process_3D.h"
 
 
+
 process_3D::process_3D() {
 }
 
@@ -139,7 +140,7 @@ string process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLTy
 
 		process_3D::LoggerMessage("Smoothed model of the surface was produced successfully");
 
-		string filename_stl = this->outputObjectsDir + "/smoothed_" + getSTLName(type) + ".stl";
+		string filename_stl = this->outputObjectsDir + separator() + "smoothed_" + getSTLName(type) + ".stl";
 
 		if (type == STLType::BLADDER) {
 			this->bladderGeometry = filename_stl;
@@ -291,7 +292,7 @@ string process_3D::findPixelsArePlacedIntoGeometries(vector<vector<Point3f>> pix
 	//}
 	//final_Points.push_back(extrapoints);
 	
-	String txtFilename = this->outputObjectsDir + "/" + getSTLName(type) + ".txt";
+	String txtFilename = this->outputObjectsDir + separator() + getSTLName(type) + ".txt";
 	ofstream txtfile;
 	txtfile.open(txtFilename);
 	for (int i = 0; i < final_Points.size(); i++) {
@@ -371,7 +372,7 @@ string process_3D::findPixelsArePlacedIntoGeometries2(vector<vector<vector<Point
 	vector<vector<vector<Point3f>>>().swap(interpolatedPixels);
 
 
-	String txtFilename = this->outputObjectsDir + "/" + getSTLName(type) + ".txt";
+	String txtFilename = this->outputObjectsDir + separator() + getSTLName(type) + ".txt";
 	ofstream txtfile;
 	txtfile.open(txtFilename);
 	for (int i = 0; i < final_Points.size(); i++) {

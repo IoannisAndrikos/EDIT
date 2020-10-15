@@ -43,8 +43,7 @@ namespace EDITProcessor {
 		//----OBJECTS-----
 		 
 		//-----variables-----
-		bool isLoggerEnabled;
-
+		bool isLoggerEnabled = true;
 
 		//--------------------------------some functions for internal use---------------------------------
 		List<List<EDITCore::CVPoint^>^> ^vectorPointsTOListPoints(vector<vector<Point2f>> lumenPoints) {
@@ -118,14 +117,33 @@ namespace EDITProcessor {
 		~Processor() {
 		}
 
+
+		void setLoggingOnOff(bool OnOff) {
+			if (OnOff) {
+				ultr->openLogger(OnOff);
+				photo->openLogger(OnOff);
+				proc->openLogger(OnOff);
+			}
+			else if (!OnOff) {
+				ultr->closeLogger();
+				photo->closeLogger();
+				proc->closeLogger();
+			}
+		}
+
 		//------------------------------- U L T R A S O U N D - P A R T ----------------------------------
 
 		 void setExaminationsDirectory(System::String ^examDir) {
 			string exam_dir = msclr::interop::marshal_as<std::string>(examDir);
 			ultr->setMainOutputDirectory(exam_dir);
 			photo->setMainOutputDirectory(exam_dir);
+			proc->setMainOutputDirectory(exam_dir);
+
+			setLoggingOnOff(true); //enable logging by default
 		}
 
+		
+		
 
 		 void setSegmentationConfigurations(int repeats, int smoothing, double lamda1, double lamda2, int levelsetSize, bool applyEqualizeHist) {
 			 ultr->repeats = repeats;
@@ -137,11 +155,9 @@ namespace EDITProcessor {
 		 }
 
 		 //export images
-		 System::String ^exportImages(System::String ^dicomFile, bool isLoggerEnabled) {
-			 this->isLoggerEnabled = isLoggerEnabled;
+		 System::String ^exportImages(System::String ^dicomFile) {
 			string Dicom_file = msclr::interop::marshal_as<std::string>(dicomFile);
 			ultr->exportImages(Dicom_file); // 1
-			if (this->isLoggerEnabled) ultr->openLogger(); //2
 			string outputimagesDir = ultr->getOutputImagesDir();
 			return msclr::interop::marshal_as<System::String ^>(outputimagesDir);
 		}
@@ -164,7 +180,6 @@ namespace EDITProcessor {
 
 		 //extract STL
 		 System::String^ extractBladderSTL(List<List<EDITCore::CVPoint^>^>^ bladderPoints, bool fillHoles) {
-
 			 vector<double> Tags = ultr->getTags();
 			 proc->fillHoles = fillHoles;
 			 proc->xspace = Tags[0] * 10;
@@ -172,13 +187,9 @@ namespace EDITProcessor {
 			 proc->distanceBetweenFrames = 0.203;
 			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
 			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
-			 string stydyDir = ultr->getStudyDir();
-			 proc->setStudyDir(stydyDir);
-			 if (this->isLoggerEnabled) proc->openLogger();
-
+			
 			 ultr->finalizePoints(listPointsToVectorPoints(bladderPoints));
 			 freeMemory(bladderPoints);
-
 			 string STLPath = proc->triangulation(ultr->getlumenPoints(), process_3D::STLType::BLADDER);
 			 return msclr::interop::marshal_as<System::String^>(STLPath);
 		 }
@@ -192,8 +203,6 @@ namespace EDITProcessor {
 			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
 			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
 
-			 string stydyDir = ultr->getStudyDir();
-			 proc->setStudyDir(stydyDir);
 
 			 proc->fillHoles = fillHoles;
 			 ultr->extractSkinPoints(listPointsToVectorPoints(bladderPoints));
@@ -216,18 +225,15 @@ namespace EDITProcessor {
 		 // ------------------------------ P H O T O A C O U S T I C - P A R T ----------------------------------
 
 		  //export photaccoustic images
-		 System::String^ exportOXYImages(System::String^ dicomFile, bool isLoggerEnabled) {
-			 this->isLoggerEnabled = isLoggerEnabled;
+		 System::String^ exportOXYImages(System::String^ dicomFile) {
 			 string Dicom_file = msclr::interop::marshal_as<std::string>(dicomFile);
-			 photo->exportOXYImages(Dicom_file); // 1
-			 if (this->isLoggerEnabled) photo->openLogger(); //2
+			 photo->exportOXYImages(Dicom_file); // 
 			 string outputimagesDir = photo->getOutputOXYImagesDir();
 			 return msclr::interop::marshal_as<System::String^>(outputimagesDir);
 		 }
 
 		 //export photaccoustic images
-		 System::String^ exportDeOXYImages(System::String^ dicomFile, bool isLoggerEnabled) {
-			 this->isLoggerEnabled = isLoggerEnabled;
+		 System::String^ exportDeOXYImages(System::String^ dicomFile) {
 			 string Dicom_file = msclr::interop::marshal_as<std::string>(dicomFile);
 			 photo->exportDeOXYImages(Dicom_file); // 1
 			 string outputimagesDir = photo->getOutputDeOXYImagesDir();
@@ -241,8 +247,6 @@ namespace EDITProcessor {
 
 
 		 List<List<EDITCore::CVPoint^>^> ^extractThickness(List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
-			// ultr->finalizePoints(listPointsToVectorPoints(bladderPoints));
-			
 			 photo->setInitialFrame(ultr->getInitialFrame());
 			 photo->setLastFrame(ultr->getLastFrame());
 			 photo->setlumenPoints(listPointsToVectorPoints(bladderPoints));
@@ -262,7 +266,6 @@ namespace EDITProcessor {
 
 		 //extract STL
 		 System::String ^extractThicknessSTL(List<List<EDITCore::CVPoint^>^>^ thicknessPoints, bool fillHoles) {
-
 			 vector<double> Tags = photo->getTags();
 			 proc->fillHoles = fillHoles;
 			 proc->xspace = Tags[0] * 10;
@@ -270,10 +273,7 @@ namespace EDITProcessor {
 			 proc->distanceBetweenFrames = 0.203;
 			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
 			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
-			 string stydyDir = photo->getStudyDir();
-			 proc->setStudyDir(stydyDir);
-			 if (this->isLoggerEnabled) proc->openLogger();
-
+			
 			 photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
 			 freeMemory(thicknessPoints);
 

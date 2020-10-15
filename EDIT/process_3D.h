@@ -58,26 +58,29 @@ public:
 
 	enum STLType { BLADDER, SKIN, THICKNESS, OXY, DeOXY};
 
-
 	string triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
 	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type); //string path
 	string findPixelsArePlacedIntoGeometries(vector<vector<Point3f>> pixels3D, STLType type);
 	string findPixelsArePlacedIntoGeometries2(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
 
-	void setStudyDir(string studyDir) {
+	void setMainOutputDirectory(string studyDir) {
 		this->studyDir = studyDir;
 
-		this->outputObjectsDir = this->studyDir + "/stl_objects";
+		this->outputObjectsDir = this->studyDir + separator() +  "stl_objects";
 		_mkdir(outputObjectsDir.c_str());
 	}
 
-	void openLogger() {
-		this->loggertxt = this->studyDir + "/process_3D_logger.txt";
-		this->logFile.open(this->loggertxt);
+	void openLogger(bool open) {
+		if (open) {
+			this->loggertxt = this->studyDir + separator() + "process_3D_logger.txt";
+			this->logFile.open(this->loggertxt);
+		}
 	}
 
 	void closeLogger() {
-		this->logFile.close();
+		if (this->logFile.is_open()) {
+			this->logFile.close();
+		}
 	}
 
 	//variables
@@ -102,6 +105,15 @@ private:
 
 	void LoggerMessage(string message) {
 		if (this->logFile.is_open()) this->logFile << " --> " << message << endl;
+	}
+
+	inline char separator()
+	{
+    #ifdef _WIN32
+		return '\\';
+    #else
+		return '/';
+    #endif
 	}
 
 };

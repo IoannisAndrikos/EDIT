@@ -34,6 +34,7 @@
 using namespace std;
 using namespace cv;
 
+
 class photoAcoustic {
 public:
 	photoAcoustic(); //constructor
@@ -51,6 +52,7 @@ public:
 
 	void setMainOutputDirectory(string mainOutputDirectory) {
 		this->mainOutputDirectory = mainOutputDirectory;
+		creatDirectories();
 	}
 
 	string getOutputOXYImagesDir() {
@@ -93,13 +95,17 @@ public:
 		return filename;
 	}
 
-	void openLogger() {
-		this->loggertxt = this->studyDir + "/photoAcoustic_logger.txt";
-		this->logFile.open(this->loggertxt);
+	void openLogger(bool open) {
+		if (open) {
+			this->loggertxt = this->studyDir + separator() + "photoAcoustic_logger.txt";
+			this->logFile.open(this->loggertxt);
+		}
 	}
 
 	void closeLogger() {
-		this->logFile.close();
+		if (this->logFile.is_open()) {
+			this->logFile.close();
+		}
 	}
 
 	vector<vector<Point2f>> getThicknessPoints() {
@@ -228,6 +234,15 @@ private:
 	vector<vector<Point2f>> lumenPoints;
 	vector<Point2f> contourForFix;
 	string loggertxt;
+
+	inline char separator()
+	{
+	#ifdef _WIN32
+		return '\\';
+	#else
+		return '/';
+	#endif
+	}
 
 };
 

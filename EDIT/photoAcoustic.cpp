@@ -8,6 +8,7 @@ struct sortclass {
 } sortPolar;
 
 
+
 photoAcoustic::photoAcoustic() {
 }
 
@@ -18,20 +19,20 @@ photoAcoustic::~photoAcoustic() {
 
 void photoAcoustic::creatDirectories() {
 	//Create all neccessary directories
-	this->studyDir = this->mainOutputDirectory + "/" + this->filename;
+	this->studyDir = this->mainOutputDirectory; //this->filename;
 	_mkdir(studyDir.c_str());
 
-	this->outputOXYImagesDir = studyDir + "/OXY_images";
+	this->outputOXYImagesDir = studyDir + separator() + "OXY_images";
 	_mkdir(outputOXYImagesDir.c_str());
 
-	this->outputDeOXYImagesDir = studyDir + "/deOXY_images";
+	this->outputDeOXYImagesDir = studyDir + separator() + "deOXY_images";
 	_mkdir(outputDeOXYImagesDir.c_str());
 
 
-	this->outputSegmentedImagesDir = studyDir + "/photoacoustic_segmented_images";
+	this->outputSegmentedImagesDir = studyDir + separator() + "photoacoustic_segmented_images";
 	_mkdir(outputSegmentedImagesDir.c_str());
 
-	this->outputPointsDir = studyDir + "/photoacoustic_points";
+	this->outputPointsDir = studyDir + separator() + "photoacoustic_points";
 	_mkdir(outputPointsDir.c_str());
 
 	/*this->loggertxt = this->studyDir + "/logger.txt";
@@ -47,10 +48,16 @@ void photoAcoustic::exportOXYImages(string dicomPath) {
 	size_t lastindex = nameAndExt.find_last_of(".");
 	this->filename = nameAndExt.substr(0, lastindex);
 	//create dir for all outputs
-	creatDirectories();
 
 	wstring dcm_str(dicomPath.length(), L' ');
 	copy(dicomPath.begin(), dicomPath.end(), dcm_str.begin());
+
+	//clear folder of images
+	for (const auto& entry : std::experimental::filesystem::directory_iterator(this->outputOXYImagesDir))
+		std::experimental::filesystem::remove_all(entry.path());
+	//clear memory of images
+	vector<Mat>().swap(OXYimages);
+
 
 	CDicomReader* reader = new CDicomReader();
 	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags
@@ -68,10 +75,16 @@ void photoAcoustic::exportDeOXYImages(string dicomPath) {
 	size_t lastindex = nameAndExt.find_last_of(".");
 	this->filename = nameAndExt.substr(0, lastindex);
 	//create dir for all outputs
-	creatDirectories();
+	
 
 	wstring dcm_str(dicomPath.length(), L' ');
 	copy(dicomPath.begin(), dicomPath.end(), dcm_str.begin());
+
+	//clear folder of images
+	for (const auto& entry : std::experimental::filesystem::directory_iterator(this->outputDeOXYImagesDir))
+		std::experimental::filesystem::remove_all(entry.path());
+	//clear memory of images
+	vector<Mat>().swap(deOXYimages);
 
 	CDicomReader* reader = new CDicomReader();
 	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags

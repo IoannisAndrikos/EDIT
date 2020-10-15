@@ -41,6 +41,7 @@ using namespace cimg_library;
 using namespace tk;
 
 
+
 class ultrasound {
 public:
 	ultrasound(); //constructor
@@ -57,6 +58,7 @@ public:
 
 	void setMainOutputDirectory(string mainOutputDirectory) {
 		this->mainOutputDirectory = mainOutputDirectory;
+		creatDirectories();
 	}
 
 	string getOutputImagesDir() {
@@ -91,13 +93,17 @@ public:
 		return filename;
 	}
 
-	void openLogger() {
-		this->loggertxt = this->studyDir + "/ultrasound_logger.txt";
-		this->logFile.open(this->loggertxt);
+	void openLogger(bool open) {
+		if (open) {
+			this->loggertxt = this->studyDir + separator() + "ultrasound_logger.txt";
+			this->logFile.open(this->loggertxt);
+		}
 	}
 
 	void closeLogger() {
-		this->logFile.close();
+		if (this->logFile.is_open()) {
+			this->logFile.close();
+		}
 	}
 
 	int getInitialFrame() {
@@ -175,7 +181,14 @@ private:
 
 	string loggertxt;
 
-
+	inline char separator()
+	{
+	#ifdef _WIN32
+		return '\\';
+	#else
+		return '/';
+	#endif
+	}
 };
 
 #endif 

@@ -36,6 +36,7 @@ ultrasound::ultrasound(string dicomPath, string outputPath) {
 
 	CDicomReader *reader = new CDicomReader();
 	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags
+    
 	this->images = reader->dcmimage_Mat(dcm_str.c_str(), tags[2], tags[3], tags[4], tags[5]);
 	//reader->dcmimage_bmp(dcm_str.c_str(), out_str.c_str()); // read the given dicom and save images into the given folder
 
@@ -50,10 +51,16 @@ void ultrasound::exportImages(string dicomPath) {
 	size_t lastindex = nameAndExt.find_last_of(".");
 	this->filename = nameAndExt.substr(0, lastindex);
 	//create dir for all outputs
-	creatDirectories();
 
 	wstring dcm_str(dicomPath.length(), L' ');
 	copy(dicomPath.begin(), dicomPath.end(), dcm_str.begin());
+
+	//clear folder of images
+	for (const auto& entry : std::experimental::filesystem::directory_iterator(this->outputImagesDir))
+		std::experimental::filesystem::remove_all(entry.path());
+	
+	//clear memory of images
+	vector<Mat>().swap(images);
 
 	CDicomReader *reader = new CDicomReader();
 	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags
@@ -67,16 +74,16 @@ void ultrasound::exportImages(string dicomPath) {
 
 void ultrasound::creatDirectories() {
 	//Create all neccessary directories
-	this->studyDir = this->mainOutputDirectory + "/" + this->filename;
+	this->studyDir = this->mainOutputDirectory; //this->filename;
 	_mkdir(studyDir.c_str());
 
-	this->outputImagesDir = studyDir + "/images";
+	this->outputImagesDir = studyDir + separator() + "ultrasound_images";
 	_mkdir(outputImagesDir.c_str());
 
-	this->outputSegmentedImagesDir = studyDir + "/segmented_images";
+	this->outputSegmentedImagesDir = studyDir + separator() +  "ultrasound_segmented_images";
 	_mkdir(outputSegmentedImagesDir.c_str());
 
-	this->outputPointsDir = studyDir + "/points";
+	this->outputPointsDir = studyDir + separator() + "ultrasound_points";
 	_mkdir(outputPointsDir.c_str());
 
 	/*this->loggertxt = this->studyDir + "/logger.txt";
