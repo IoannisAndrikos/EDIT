@@ -45,7 +45,7 @@ public:
 	void exportOXYImages(string dicomPath);
 	void exportDeOXYImages(string dicomPath);
 	void thicknessExtraction(int frame = 0); //frame = 0 means that the process will be performed for all photoAcoustic sequenence
-	void finalizeAllThicknessContours(vector<vector<Point2f>> thicknessContours);
+	void finalizeAllThicknessContours(vector<vector<Point2f>> points);
 	void extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type);
 	void extractOXYandDeOXYPoints2(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type);
 	void writeThicknessPoints();
@@ -189,7 +189,7 @@ public:
 	Point2f imageCenter;
 	double xspace;
 	double yspace;
-	
+	int fixedMeanPixelThickness = 10;
 
 
 private:

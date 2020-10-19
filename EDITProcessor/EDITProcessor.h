@@ -188,7 +188,7 @@ namespace EDITProcessor {
 			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
 			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
 			
-			 ultr->finalizePoints(listPointsToVectorPoints(bladderPoints));
+			 ultr->finalizeAllBladderContours(listPointsToVectorPoints(bladderPoints));
 			 freeMemory(bladderPoints);
 			 string STLPath = proc->triangulation(ultr->getlumenPoints(), process_3D::STLType::BLADDER);
 			 return msclr::interop::marshal_as<System::String^>(STLPath);
@@ -247,6 +247,16 @@ namespace EDITProcessor {
 
 
 		 List<List<EDITCore::CVPoint^>^> ^extractThickness(List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
+
+			 //--------------------Photo Acoustic Settings-------------------
+			 vector<double> Tags = photo->getTags();
+			 photo->xspace = Tags[0] * 10;
+			 photo->yspace = Tags[1] * 10;
+			 photo->distanceBetweenFrames = 0.203;
+			 photo->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
+			 photo->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2
+			 //--------------------------------------------------------------
+
 			 photo->setInitialFrame(ultr->getInitialFrame());
 			 photo->setLastFrame(ultr->getLastFrame());
 			 photo->setlumenPoints(listPointsToVectorPoints(bladderPoints));
@@ -284,13 +294,6 @@ namespace EDITProcessor {
 
 
 		 List<System::String^>^ extractOXYandDeOXYPoints(List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
-
-			 vector<double> Tags = photo->getTags();
-			 photo->xspace = Tags[0] * 10;
-			 photo->yspace = Tags[1] * 10;
-			 photo->distanceBetweenFrames = 0.203;
-			 photo->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
-			 photo->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
 			//photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::OXY);
 			//photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::DeOXY);
 

@@ -62,7 +62,7 @@ int main(int argv, char* argc) {
 
 	//vector<vector<Point2f>> lumenPoints = ultr->getlumenPoints();
 	//vector<vector<Point2f>> skinPoints = ultr->getSkinPoints();
-	ultr->finalizePoints(ultr->getlumenPoints());
+	ultr->finalizeAllBladderContours(ultr->getlumenPoints());
 	vector<vector<Point2f>> lumenPoints = ultr->getlumenPoints();
 
 	//directory for images

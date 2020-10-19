@@ -95,6 +95,9 @@ void photoAcoustic::exportDeOXYImages(string dicomPath) {
 
 
 void photoAcoustic::thicknessExtraction(int frame) {
+
+	this->fixedMeanPixelThickness = floor(sqrt(pow((this->minThickness + this->maxThickness) / 2, 2) / 2) / this->xspace);
+
 	if (frame == 0) {
 		vector<vector<Point2f>>().swap(this->thicknessPoints);
 		vector<vector<Point2f>>().swap(finalThicknessPoints);
@@ -111,9 +114,6 @@ void photoAcoustic::thicknessExtraction(int frame) {
 
 
 void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
-
-	double xspace = tags[0] * 10;
-	double yspace = tags[1] * 10;
 
 	Mat OXYImage, edge_OXY, red_PA;
 	OXYImage = this->OXYimages[frame];
@@ -203,7 +203,7 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 				Vec3b intensityBil = Vec3b(*itBil);
 				if ((int)intensity.val[1] > 0) {
 
-					double dist = sqrt(pow(countPixel * xspace, 2) + pow(countPixel * yspace, 2));
+					double dist = sqrt(pow(countPixel * this->xspace, 2) + pow(countPixel * this->yspace, 2));
 					if (dist > this->maxThickness) {
 						//cout << "greated than maxThickness" << endl;
 						break;
@@ -233,18 +233,13 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 				count++;
 				//cout << "---->Distance: " << distance << endl;
 				meanDistance += distance;
-
 			}
-
 			vector<Point2f>().swap(potencialPositions);
 			vector<int>().swap(potencialPositionsBasedOnIntesityCount);
 			vector<int>().swap(potencialPositionsBasedOnPixelCount);
 			vector<Point2f>().swap(coordinates);
-
 			//line(PA_initial, bladder_updated[i], expantedBladder[i], Scalar(255, 255, 255), 1);
 		}
-
-
 	}
 
 	(count != 0) ? meanDistance /= count : meanDistance = 0;
@@ -265,6 +260,8 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 
 	(countNew != 0) ? newMeanDistance /= countNew : newMeanDistance = 0;
 
+	if (newMeanDistance == 0) newMeanDistance = this->fixedMeanPixelThickness;
+
 	//---------------------------MEAN TICKNESS-------------------
 	for (int i = 0; i < outer_mean.size(); i++) {
 		outer_mean[i].x += round(newMeanDistance);
@@ -280,7 +277,7 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 	}
 	//-----------------------------------------------------------
 
-	double meanThick = sqrt(pow(meanDistance * xspace, 2) + pow(meanDistance * yspace, 2));
+	double meanThick = sqrt(pow(newMeanDistance * this->xspace, 2) + pow(newMeanDistance * this->yspace, 2));
 	
 	if (type == totalSequenceOrCorrecton::TOTAL) {
 		this->meanThickness.push_back(meanThick);
@@ -329,15 +326,6 @@ void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderCont
 		vector<vector<Point3f>>().swap(this->DeOXYPoints);
 	}
 
-
-	Point2f imageCenter;
-
-	imageCenter.x = (this->tags[3] - this->tags[2]) / 2; //center_x = (Xmax - Xmin)/2
-	imageCenter.y = (this->tags[5] - this->tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
-	double xspace = this->tags[0] * 10;
-	double yspace = this->tags[1] * 10;
-	
-
 	for (int i = 0; i < bladderContours.size(); i++) {
 		
 		bladderContours[i] = smoothContour(bladderContours[i], 100);
@@ -377,7 +365,7 @@ void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderCont
 
 
 		for (int k = 0; k < Pixels.total(); k++) {
-			FramePoints.push_back(Point3f((Pixels.at<Point>(k).x - imageCenter.x) * xspace, (Pixels.at<Point>(k).y - imageCenter.y) * yspace, this->distanceBetweenFrames * i));
+			FramePoints.push_back(Point3f((Pixels.at<Point>(k).x - this->imageCenter.x) *this->xspace, (Pixels.at<Point>(k).y - this->imageCenter.y) * this->yspace, this->distanceBetweenFrames * i));
 		}
 
 		if (type == Point3DType::OXY) {
@@ -558,12 +546,71 @@ Point2f photoAcoustic::findCenterOfContour(vector<Point2f> contour) {
 	return center;
 }
 
-void photoAcoustic::finalizeAllThicknessContours (vector<vector<Point2f>> thicknessContours) {
+void photoAcoustic::finalizeAllThicknessContours (vector<vector<Point2f>> points) {
+
 	vector<vector<Point2f>>().swap(finalThicknessPoints);
-	for (int i = 0; i < thicknessContours.size(); i++) {
-		//this->finalThicknessPoints.push_back(smoothContour(thicknessContours[i], 100));
-		this->finalThicknessPoints.push_back(sortUsingPolarCoordinates(thicknessContours[i], 100));
-	}	
+	for (int i = 0; i < points.size(); i++) {
+
+		points[i] = smoothContour(points[i], 100);
+
+		Point2f center = accumulate(points[i].begin(), points[i].end(), Point2f(0.0, 0.0));
+		center.x /= points[i].size();
+		center.y /= points[i].size();
+
+		transform(points[i].begin(), points[i].end(), points[i].begin(), std::bind2nd(std::minus<Point2f>(), center));
+
+
+		Mat xpts(points[i].size(), 1, CV_32F, &points[i][0].x, 2 * sizeof(float));
+		Mat ypts(points[i].size(), 1, CV_32F, &points[i][0].y, 2 * sizeof(float));
+		Mat magnitude, angle;
+		cartToPolar(xpts, ypts, magnitude, angle);
+		vector<Point2f> polarXY, sortedPolarXY;
+		vector<double> polarAngles;
+		for (int j = 0; j < points[i].size(); j++) {
+			polarXY.push_back(Point2f(magnitude.at<Float32>(j), angle.at<Float32>(j)));
+			polarAngles.push_back(angle.at<Float32>(j));
+		}
+		auto min = std::min_element(polarAngles.begin(), polarAngles.end());
+
+		int minIndex = distance(polarAngles.begin(), min);
+
+		if (minIndex != 0) {
+			sortedPolarXY.insert(sortedPolarXY.end(), polarXY.begin() + minIndex, polarXY.end());
+			polarXY.erase(polarXY.begin() + minIndex, polarXY.end());
+		}
+		sortedPolarXY.insert(sortedPolarXY.end(), polarXY.begin(), polarXY.end());
+
+		Mat mag(sortedPolarXY.size(), 1, CV_32F, &sortedPolarXY[0].x, 2 * sizeof(float));
+		Mat ang(sortedPolarXY.size(), 1, CV_32F, &sortedPolarXY[0].y, 2 * sizeof(float));
+		Mat xnew, ynew;
+		polarToCart(mag, ang, xnew, ynew);
+		vector<Point2f> pp;
+
+		for (int j = 0; j < points[i].size(); j++) {
+			pp.push_back(Point2f(xnew.at<Float32>(j), ynew.at<Float32>(j)));
+		}
+
+		transform(pp.begin(), pp.end(), pp.begin(), std::bind2nd(std::plus<Point2f>(), center));
+		this->finalThicknessPoints.push_back(pp);
+
+		xpts.release();
+		ypts.release();
+		mag.release();
+		ang.release();
+		xnew.release();
+		ynew.release();
+		vector<double>().swap(polarAngles);
+		vector<Point2f>().swap(polarXY);
+		vector<Point2f>().swap(sortedPolarXY);
+		vector<Point2f>().swap(pp);
+	}
+	vector<vector<Point2f>>().swap(points);
+
+	//vector<vector<Point2f>>().swap(finalThicknessPoints);
+	//for (int i = 0; i < thicknessContours.size(); i++) {
+	//	//this->finalThicknessPoints.push_back(smoothContour(thicknessContours[i], 100));
+	//	this->finalThicknessPoints.push_back(sortUsingPolarCoordinates(thicknessContours[i], 100));
+	//}	
 }
 
 

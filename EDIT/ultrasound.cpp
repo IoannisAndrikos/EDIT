@@ -5,10 +5,23 @@
 #include "morphsnakes.h"
 
 
-struct sortclass {
+struct sortBasedYCoordinate {
 	bool operator() (cv::Point2f pt1, cv::Point2f pt2) { return (pt1.y < pt2.y); }
-} sortObject;
+} sortBasedYCoordinate;
 
+
+struct EuclideanDistance
+{
+	EuclideanDistance(const Point2f& _p) : p(_p) {}
+
+	bool operator()(const Point2f& lhs, const Point2f& rhs) const
+	{
+		return sqrt(pow(lhs.x - p.x, 2) + pow(lhs.y - p.y, 2)) < sqrt(pow(rhs.x - p.x, 2) + pow(rhs.y - p.y, 2));
+	}
+
+private:
+	Point2f p;
+};
 
 bool Longest(const std::vector<Point>& lhs, const std::vector<Point>& rhs)
 {
@@ -178,7 +191,7 @@ void ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint) {
 		if (poitsWereFound == ResultOfProcess::SUCCESS) {
 			//int pix = findDistanceLumenFromSkin(images[i], highestWhitePixel);
 
-			sortUsingPolarCoordinates(lumenPoints, i, lumenCenter, images[i], 120);
+			sortUsingPolarCoordinates(lumenPoints, i, lumenCenter, images[i], 0);
 
 		}
 
@@ -192,10 +205,12 @@ void ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint) {
 }
 
 
-void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
+void ultrasound::finalizeAllBladderContours(vector<vector<Point2f>> points) {
 	vector<vector<Point2f>>().swap(lumenPoints);
 	for (int i = 0; i < points.size(); i++) {
 	
+		points[i] = smoothContour(points[i], 100);
+
 		Point2f center = accumulate(points[i].begin(), points[i].end(), Point2f(0.0, 0.0));
 		center.x /= points[i].size();
 		center.y /= points[i].size();
@@ -207,13 +222,24 @@ void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
 		Mat ypts(points[i].size(), 1, CV_32F, &points[i][0].y, 2 * sizeof(float));
 		Mat magnitude, angle;
 		cartToPolar(xpts, ypts, magnitude, angle);
-		vector<Point2f> polarXY;
+		vector<Point2f> polarXY, sortedPolarXY;
+		vector<double> polarAngles;
 		for (int j = 0; j < points[i].size(); j++) {
 			polarXY.push_back(Point2f(magnitude.at<Float32>(j), angle.at<Float32>(j)));
+			polarAngles.push_back(angle.at<Float32>(j));
 		}
-		sort(polarXY.begin(), polarXY.end(), sortObject); // critical step
-		Mat mag(polarXY.size(), 1, CV_32F, &polarXY[0].x, 2 * sizeof(float));
-		Mat ang(polarXY.size(), 1, CV_32F, &polarXY[0].y, 2 * sizeof(float));
+		auto min = std::min_element(polarAngles.begin(), polarAngles.end());
+
+		int minIndex = distance(polarAngles.begin(), min);
+	
+		if (minIndex != 0) {
+			sortedPolarXY.insert(sortedPolarXY.end(), polarXY.begin() + minIndex, polarXY.end());
+			polarXY.erase(polarXY.begin() + minIndex, polarXY.end());
+		}
+		sortedPolarXY.insert(sortedPolarXY.end(), polarXY.begin(), polarXY.end());
+		
+		Mat mag(sortedPolarXY.size(), 1, CV_32F, &sortedPolarXY[0].x, 2 * sizeof(float));
+		Mat ang(sortedPolarXY.size(), 1, CV_32F, &sortedPolarXY[0].y, 2 * sizeof(float));
 		Mat xnew, ynew;
 		polarToCart(mag, ang, xnew, ynew);
 		vector<Point2f> pp;
@@ -221,11 +247,9 @@ void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
 		for (int j = 0; j<points[i].size(); j++) {
 			pp.push_back(Point2f(xnew.at<Float32>(j), ynew.at<Float32>(j)));
 		}
-		vector<Point2f> smoothed = smoothCurve(sortBasedEuclideanDistance(pp), 100); //num_spline = 100
 
-		transform(smoothed.begin(), smoothed.end(), smoothed.begin(), std::bind2nd(std::plus<Point2f>(), center));
-		
-		this->lumenPoints.push_back(smoothed);
+		transform(pp.begin(), pp.end(), pp.begin(), std::bind2nd(std::plus<Point2f>(), center));
+		this->lumenPoints.push_back(pp);
 	
 		xpts.release();
 		ypts.release();
@@ -233,9 +257,10 @@ void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
 		ang.release();
 		xnew.release();
 		ynew.release();
+		vector<double>().swap(polarAngles);
 		vector<Point2f>().swap(polarXY);
+		vector<Point2f>().swap(sortedPolarXY);
 		vector<Point2f>().swap(pp);
-		vector<Point2f>().swap(smoothed);
 	}
 	vector<vector<Point2f>>().swap(points);
 }
@@ -243,7 +268,7 @@ void ultrasound::finalizePoints(vector<vector<Point2f>> points) {
 void ultrasound::extractSkinPoints(vector<vector<Point2f>> bladderPoints) {
 
 	vector<vector<Point2f>>().swap(skinPoints);
-	finalizePoints(bladderPoints);
+	finalizeAllBladderContours(bladderPoints);
 
 	this->skinPoints = this->getlumenPoints();
 	int imageCount = this->initialFrame;
@@ -374,7 +399,7 @@ void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f
 		polarXY.push_back(Point2f(magnitude.at<Float32>(i), angle.at<Float32>(i)));
 	}
 
-	sort(polarXY.begin(), polarXY.end(), sortObject);
+	sort(polarXY.begin(), polarXY.end(), sortBasedYCoordinate);
 
 	Mat mag(polarXY.size(), 1, CV_32F, &polarXY[0].x, 2 * sizeof(float));
 	Mat ang(polarXY.size(), 1, CV_32F, &polarXY[0].y, 2 * sizeof(float));
@@ -387,8 +412,7 @@ void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f
 	for (int i = 0; i < p->size(); i++) {
 		pp.push_back(Point2f(xnew.at<Float32>(i), ynew.at<Float32>(i)));
 	}
-
-	vector<Point2f> smoothed = smoothCurve(sortBasedEuclideanDistance(pp)); //num_spline = 50;
+	vector<Point2f> smoothed = smoothContour(sortBasedEuclideanDistance(pp), 0); //num_spline = 50;
 
 
 	transform(smoothed.begin(), smoothed.end(), smoothed.begin(), std::bind2nd(std::plus<Point2f>(), *center));
@@ -483,61 +507,46 @@ CImg<unsigned char> ultrasound::circle_levelset(int height, int width, const arr
 	return res;
 }
 
+//sorted.push_back(sorted[0]);
 
-vector<vector<vector<double>>> ultrasound::sortBasedEuclideanDistance(vector<Point2f> points) {
+vector<Point2f> ultrasound::sortBasedEuclideanDistance(vector<Point2f> points) {
 
 	vector<Point2f> sorted;
-	//keep pixel those have distance from (0,0) greated than 10. This was a problem due to ultrasound artifact
+	Point2f center = accumulate(points.begin(), points.end(), Point2f(0.0, 0.0));
+
+	center.x /= points.size();
+	center.y /= points.size();
+
+
 	int count = 0;
-	while (sorted.size() < 3) {
-		if (sqrt(pow(points[count].x - 0, 2) + pow(points[count].y - 0, 2)) > 10) {
-			sorted.push_back(points[count]);
-			points[count] = { 256, 256 };
-		}
+	double dist = sqrt(pow(points[count].x - center.x, 2) + pow(points[count].y - center.y, 2));
+	//keep as first pixel this has distance from center greater than 10. This was a problem due to ultrasound artifact
+	while (dist < 10) {
 		count++;
+		dist = sqrt(pow(points[count].x - center.x, 2) + pow(points[count].y - center.y, 2));
 	}
 
-	while (sorted.size() < points.size()) {
-		int index;
-		vector<double> d;
-		vector<double>::iterator iter;
+	sorted.push_back(points[count]);
+	points.erase(points.begin() + count);
+
+	int range = floor(points.size() / 3);
+
+	while (!points.empty()) {
 		Point2f po = sorted.back();
-		for (int i = 0; i < points.size(); i++) {
-			double dist = sqrt(pow(po.x - points[i].x, 2) + pow(po.y - points[i].y, 2));
-			d.push_back(dist);
-		}
-		double min_el = *min_element(d.begin(), d.end());
-		iter = find(d.begin(), d.end(), min_el);
-		index = std::distance(d.begin(), iter);
-		sorted.push_back(points[index]);
-		points[index] = { 256, 256 };
+		 (points.size() > range) ? 
+			 sort(points.begin(), points.begin() + range, EuclideanDistance(po)) : 
+			 sort(points.begin(), points.begin() + range--, EuclideanDistance(po));
+		 dist = sqrt(pow(points[0].x - po.x, 2) + pow(points[0].y - po.y, 2));
+		 if (dist < 50)
+			 sorted.push_back(points[0]);
+		points.erase(points.begin());
 	}
 
-	sorted.push_back(sorted[0]);
-
-	vector<vector<vector<double>>> cl_3D;
-	vector<vector<double>> temp_cl_3D;
-	vector<double> xx;
-	vector<double> yy;
-	vector<double> zz;
-
-	for (int i = 0; i < sorted.size(); i++) {
-		vector<double> temp_temp_cl_3D;
-		temp_temp_cl_3D.push_back(sorted[i].x);
-		temp_temp_cl_3D.push_back(sorted[i].y);
-		temp_cl_3D.push_back(temp_temp_cl_3D);
-	}
-	cl_3D.push_back(temp_cl_3D);
-
-	//free memory
-	vector<vector<double>>().swap(temp_cl_3D);
-	vector<double>().swap(xx);
-	vector<double>().swap(yy);
-	vector<double>().swap(zz);
+	//sorted.push_back(sorted[0]);
 
 	LoggerMessage("Bladder points were sorted clickwise successfully!");
 	
-	return cl_3D;
+	return sorted;
 }
 
 int ultrasound::findLongestVector(vector<vector<Point>> vec) {
@@ -549,7 +558,33 @@ int ultrasound::findLongestVector(vector<vector<Point>> vec) {
 	}
 	return max;
 }
+vector<Point2f> ultrasound::smoothContour(vector<Point2f> contour, int num_spline) {
 
+	vector<vector<vector<double>>> cl_3D;
+	vector<vector<double>> temp_cl_3D;
+	vector<double> xx;
+	vector<double> yy;
+	vector<double> zz;
+
+	for (int i = 0; i < contour.size(); i++) {
+		vector<double> temp_temp_cl_3D;
+		temp_temp_cl_3D.push_back(contour[i].x);
+		temp_temp_cl_3D.push_back(contour[i].y);
+		temp_cl_3D.push_back(temp_temp_cl_3D);
+	}
+	cl_3D.push_back(temp_cl_3D);
+
+	contour = smoothCurve(cl_3D, num_spline);
+
+	//free some memory
+	vector<vector<vector<double>>>().swap(cl_3D);
+	vector<vector<double>>().swap(temp_cl_3D);
+	vector<double>().swap(xx);
+	vector<double>().swap(yy);
+	vector<double>().swap(zz);
+
+	return contour;
+}
 
 // Cubic spline interpolation to smooth centerline
 vector<Point2f> ultrasound::smoothCurve(vector<vector<vector<double>>> centerline, int num_spline) { //vector<vector<double>>

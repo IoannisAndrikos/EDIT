@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <direct.h>
 #include <iostream>
+#include <iterator>
 #include <numeric>
 #include <string>
 #include <locale>
@@ -51,7 +52,7 @@ public:
 	void exportImages(string dicomPath);
 
 	void processing(int initialFrame, int lastFrame, cv::Point clickPoint); //cropping and filtering //vector<vector<Point2f>>
-	void finalizePoints(vector<vector<Point2f>> p);
+	void finalizeAllBladderContours(vector<vector<Point2f>> points);
 	void extractSkinPoints(vector<vector<Point2f>> bladderPoints);
 	void writePointsAndImages();
 
@@ -149,9 +150,10 @@ private:
 	CImg<unsigned char> *cvImgToCImg(Mat &cvImg);
 	Mat CImgtoCvImg(CImg<unsigned char> img);
 	void creatDirectories();
+	vector<Point2f> smoothContour(vector<Point2f> contour, int num_spline);
 	vector<Point2f> smoothCurve(vector<vector<vector<double>>> centerline, int num_spline = 0);
 	CImg<unsigned char> circle_levelset(int height, int width, const array<int, 2>& center, double radius, double scalerow = 1.0);
-	vector<vector<vector<double>>> sortBasedEuclideanDistance(vector<Point2f> points);
+	vector<Point2f> sortBasedEuclideanDistance(vector<Point2f> points);
 	ResultOfProcess centerAndPointsOfContour(Mat processed, vector<Point2f> *points, Point2f *center, cv::Point *highestWhitePixel = &cv::Point(0,0));
 	void sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f *center, Mat image, int skinDistance);
 	int findLongestVector(vector<vector<cv::Point>> vec);
