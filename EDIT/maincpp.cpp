@@ -21,13 +21,16 @@ void initiatePoint(int event, int x, int y, int, void* imgptr) {
 int main(int argv, char* argc) {
 	string mainPath = "C:/Users/Legion Y540/Desktop/EDIT_STUDIES";
 
-	string dcmPath = "C:/Users/Legion Y540/Desktop/EDIT Data/month 0/R73/R73_US.dcm";
+	//string dcmPath = "C:/Users/Legion Y540/Desktop/EDIT Dicom/month 0/R75/R75_US.dcm";
+	string dcmPath = "C:/Users/Legion Y540/Desktop/lime pinakaes_Andrikos.pdf";
 	//string outputPath = "C:/Users/Legion Y540/Desktop/trial";
 
 	//ultrasound *ultr = new ultrasound(dcmPath, outputPath);
 	ultrasound *ultr = new ultrasound();
 	ultr->setMainOutputDirectory(mainPath);
 	ultr->exportImages(dcmPath);
+	
+	
 		
 
 	vector<double> Tags = ultr->getTags();
@@ -40,15 +43,15 @@ int main(int argv, char* argc) {
 
 
 
-	int iniFrame = 53;
-	int lastFrame = 70;
+	int iniFrame = 0;
+	int lastFrame = 72;
 
 
 	ultr->repeats = 20;
 	ultr->smoothing = 3;
 	ultr->lamda1 = 1;
 	ultr->lamda2 = 1;
-	ultr->levelsetSize = 40;
+	ultr->levelsetSize = 5;
 	ultr->applyEqualizeHist = false;
 
 	Mat inputforPoint = images[iniFrame];
@@ -99,14 +102,14 @@ int main(int argv, char* argc) {
 	//}
 	//0.203
 
-	/*process_3D *proc = new process_3D();
+	process_3D *proc = new process_3D();
 
 
 	
 	proc->xspace = Tags[0] * 10;
 	proc->yspace = Tags[1] * 10;
 	proc->distanceBetweenFrames = 0.203;
-	proc->setStudyDir(ultr->getStudyDir());
+	proc->setMainOutputDirectory(ultr->getStudyDir());
 
 	string stlpath = studyPath + "/stl_objects";
 	_mkdir(stlpath.c_str());
@@ -114,14 +117,14 @@ int main(int argv, char* argc) {
 
 	
 
-	ultr->extractSkinPoints();
+	/*ultr->extractSkinPoints();
 
 	vector<vector<Point2f>> skinPoints = ultr->getSkinPoints();
 	cout << skinPoints.size() << endl;
 	cout << skinPoints[0].size() << endl;*/
 
-
-	photoAcoustic* photo = new photoAcoustic();
+	//------------------------------------
+	/*photoAcoustic* photo = new photoAcoustic();
 	photo->setMainOutputDirectory(mainPath);
 	photo->exportOXYImages("C:/Users/Legion Y540/Desktop/EDIT Data/month 0/R73/R73_OXY.dcm");
 
@@ -130,7 +133,8 @@ int main(int argv, char* argc) {
 	photo->setInitialFrame(ultr->getInitialFrame());
 	photo->setLastFrame(ultr->getLastFrame());
 	photo->setlumenPoints(ultr->getlumenPoints());
-	photo->thicknessExtraction();
+	photo->thicknessExtraction();*/
+	//-----------------------------------
 
 
 	//proc->triangulation(skinPoints, process_3D::STLType::SKIN);

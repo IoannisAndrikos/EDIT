@@ -1,6 +1,7 @@
 #pragma once
 #include "photoAcoustic.h"
 
+#include "messages.h"
 struct sortclass {
 	bool operator() (cv::Point2f pt1, cv::Point2f pt2) {
 		return (pt1.y < pt2.y); 
@@ -40,7 +41,7 @@ void photoAcoustic::creatDirectories() {
 }
 
 
-void photoAcoustic::exportOXYImages(string dicomPath) {
+string photoAcoustic::exportOXYImages(string dicomPath) {
 
 	this->dicomPath = dicomPath;
 	string nameAndExt = experimental::filesystem::path(dicomPath).filename().generic_string();
@@ -60,14 +61,27 @@ void photoAcoustic::exportOXYImages(string dicomPath) {
 
 
 	CDicomReader* reader = new CDicomReader();
+
 	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags
+	if (this->tags.size() < 6) {
+		return warningMessages::cannotGetAllNecessaryDicomTags;
+	}
 	this->OXYimages = reader->dcmimage_Mat(dcm_str.c_str(), this->outputOXYImagesDir, tags[2], tags[3], tags[4], tags[5], CDicomReader::ImageChannel::RED);
+	if (this->OXYimages.size() == 0) {
+		return warningMessages::cannotReadTheDicomFile;
+	}
 
 	reader->~CDicomReader();
+	
+	return this->success;
 }
 
 
-void photoAcoustic::exportDeOXYImages(string dicomPath) {
+string photoAcoustic::exportDeOXYImages(string dicomPath) {
+
+	if (experimental::filesystem::path(dicomPath).filename().extension().generic_string() != ".dcm") {
+		return warningMessages::cannotReadTheDicomFile;
+	}
 
 	this->dicomPath = dicomPath;
 	string nameAndExt = experimental::filesystem::path(dicomPath).filename().generic_string();
@@ -88,9 +102,17 @@ void photoAcoustic::exportDeOXYImages(string dicomPath) {
 
 	CDicomReader* reader = new CDicomReader();
 	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags
+	if (this->tags.size() < 6) {
+		return warningMessages::cannotGetAllNecessaryDicomTags;
+	}
 	this->deOXYimages = reader->dcmimage_Mat(dcm_str.c_str(), this->outputDeOXYImagesDir, tags[2], tags[3], tags[4], tags[5], CDicomReader::ImageChannel::BLUE);
+	if (this->deOXYimages.size() == 0) {
+		return warningMessages::cannotReadTheDicomFile;
+	}
 
 	reader->~CDicomReader();
+
+	return this->success;
 }
 
 
@@ -293,10 +315,10 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 		}
 	}
 	if (type == totalSequenceOrCorrecton::TOTAL) {
-		this->thicknessPoints.push_back(smoothContour(thicknessPoints, 0));
+		this->thicknessPoints.push_back(smoothContour(thicknessPoints, 0, true));
 	}
 	else {
-		this->contourForFix = smoothContour(thicknessPoints, 0);
+		this->contourForFix = smoothContour(thicknessPoints, 0, true);
 		this->thicknessPoints[frame - this->initialFrame] = this->contourForFix;
 	}
 
@@ -317,77 +339,7 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 }
 
 
-void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type){
-
-	if (type == Point3DType::OXY) {
-		vector<vector<Point3f>>().swap(this->OXYPoints);
-	}
-	else if (type == Point3DType::DeOXY) {
-		vector<vector<Point3f>>().swap(this->DeOXYPoints);
-	}
-
-	for (int i = 0; i < bladderContours.size(); i++) {
-		
-		bladderContours[i] = smoothContour(bladderContours[i], 100);
-		thicknessContours[i] = smoothContour(thicknessContours[i], 100);
-
-		Mat image, black, result;
-
-		if (type == Point3DType::OXY) {
-			image = this->OXYimages[i + this->initialFrame];
-		}
-		else if (type == Point3DType::DeOXY) {
-			image = this->deOXYimages[i + this->initialFrame];
-		}
-		
-		threshold(image, image, 100, 255, THRESH_BINARY);
-
-		black = Mat::zeros(image.size(), image.type());
-		
-		vector<Point>  rounded_thicknessContoursPoint;
-		vector<Point>  rounded_bladderContoursPoint;
-		for (int j = 0; j < bladderContours[i].size(); j++) {
-			rounded_thicknessContoursPoint.push_back(Point(round(thicknessContours[i][j].x), round(thicknessContours[i][j].y)));
-			rounded_bladderContoursPoint.push_back(Point(round(bladderContours[i][j].x), round(bladderContours[i][j].y)));
-		}
-
-		fillPoly(black, rounded_thicknessContoursPoint, Scalar(255, 255, 255));
-		bitwise_and(black, image, result);
-
-		fillPoly(result, rounded_bladderContoursPoint, Scalar(0, 0, 0));
-
-
-		Mat Pixels;   // output, locations of non-zero pixels
-
-		findNonZero(result, Pixels);
-
-		vector<Point3f> FramePoints;
-
-
-		for (int k = 0; k < Pixels.total(); k++) {
-			FramePoints.push_back(Point3f((Pixels.at<Point>(k).x - this->imageCenter.x) *this->xspace, (Pixels.at<Point>(k).y - this->imageCenter.y) * this->yspace, this->distanceBetweenFrames * i));
-		}
-
-		if (type == Point3DType::OXY) {
-			this->OXYPoints.push_back(FramePoints);
-		}
-		else if (type == Point3DType::DeOXY) {
-			this->DeOXYPoints.push_back(FramePoints);
-		}
-
-		image.release();
-		black.release();
-		result.release();
-		Pixels.release();;
-		vector<Point3f>().swap(FramePoints);
-		vector<Point>().swap(rounded_thicknessContoursPoint);
-		vector<Point>().swap(rounded_bladderContoursPoint);
-	}
-}
-
-
-
-void photoAcoustic::extractOXYandDeOXYPoints2(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type) {
+void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type) {
 
 	vector<vector<Point3f>>().swap(notSharderPoints);
 	vector<vector<vector<Point3f>>>().swap(sharderPoints);
@@ -517,7 +469,7 @@ void photoAcoustic::writeThicknessPoints() {
 		int frame = k - this->initialFrame;
 
 
-		String Thicknesstxt = this->outputPointsDir + "/" + to_string(k) + ".txt";
+		String Thicknesstxt = this->outputPointsDir + separator() + to_string(k) + ".txt";
 		ofstream fileThickness;
 
 		thicknessPoints = this->finalThicknessPoints[k - initialFrame];
@@ -528,7 +480,7 @@ void photoAcoustic::writeThicknessPoints() {
 			OXYImage.at<uchar>(thicknessPoints[i].y, thicknessPoints[i].x) = 255;
 		}
 
-		String pathbmp = this->outputSegmentedImagesDir + "/" + to_string(k) + ".bmp";
+		String pathbmp = this->outputSegmentedImagesDir + separator() + to_string(k) + ".bmp";
 		imwrite(pathbmp, OXYImage);
 		fileThickness.close();
 	}
@@ -551,7 +503,7 @@ void photoAcoustic::finalizeAllThicknessContours (vector<vector<Point2f>> points
 	vector<vector<Point2f>>().swap(finalThicknessPoints);
 	for (int i = 0; i < points.size(); i++) {
 
-		points[i] = smoothContour(points[i], 100);
+		points[i] = smoothContour(points[i], 100, true);
 
 		Point2f center = accumulate(points[i].begin(), points[i].end(), Point2f(0.0, 0.0));
 		center.x /= points[i].size();
@@ -614,7 +566,9 @@ void photoAcoustic::finalizeAllThicknessContours (vector<vector<Point2f>> points
 }
 
 
-vector<Point2f> photoAcoustic::smoothContour(vector<Point2f> contour, int num_spline) {
+vector<Point2f> photoAcoustic::smoothContour(vector<Point2f> contour, int num_spline, bool closedContour) {
+
+	if(closedContour) contour.push_back(contour[0]);
 
 	vector<vector<vector<double>>> cl_3D;
 	vector<vector<double>> temp_cl_3D;
@@ -630,6 +584,7 @@ vector<Point2f> photoAcoustic::smoothContour(vector<Point2f> contour, int num_sp
 	}
 	cl_3D.push_back(temp_cl_3D);
 
+	vector<Point2f>().swap(contour);
 	contour = smoothCurve(cl_3D, num_spline);
 
 	//free some memory
@@ -795,7 +750,7 @@ vector<Point2f> photoAcoustic::smoothCurve(vector<vector<vector<double>>> center
 		//cout << smoothed_distance << " ";
 		double planeDistance;
 		if (num_spline == 0) {
-			planeDistance = 13; // sampling distance 54
+			planeDistance = 10; // sampling distance 54
 		}
 		else {
 			planeDistance = ceil(smoothed_distance) / num_spline; //ceil(smoothed_distance) / num_spline
@@ -829,11 +784,13 @@ vector<Point2f> photoAcoustic::smoothCurve(vector<vector<vector<double>>> center
 	//convert point from double to Point (opencv)
 	vector<Point2f> t;
 
-	t.push_back(Point(centerline[0][0][0], centerline[0][0][1])); //push the first point into the vector
+	//t.push_back(Point(centerline[0][0][0], centerline[0][0][1])); //push the first point into the vector
 
 	for (int i = 0; i < smoothCtr[0].size(); i++) {
 		t.push_back(Point2f(smoothCtr[0][i][0], smoothCtr[0][i][1]));
 	}
+
+	//vector<Point2f>().swap(t);
 
 	//free memory
 	vector<vector<vector<double>>>().swap(smoothCtr);

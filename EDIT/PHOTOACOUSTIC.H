@@ -42,12 +42,11 @@ public:
 
 	enum Point3DType { OXY, DeOXY };
 
-	void exportOXYImages(string dicomPath);
-	void exportDeOXYImages(string dicomPath);
+	string exportOXYImages(string dicomPath);
+	string exportDeOXYImages(string dicomPath);
 	void thicknessExtraction(int frame = 0); //frame = 0 means that the process will be performed for all photoAcoustic sequenence
 	void finalizeAllThicknessContours(vector<vector<Point2f>> points);
 	void extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type);
-	void extractOXYandDeOXYPoints2(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type);
 	void writeThicknessPoints();
 
 	void setMainOutputDirectory(string mainOutputDirectory) {
@@ -197,7 +196,7 @@ private:
 	enum totalSequenceOrCorrecton { TOTAL, CORRECTION};
 	void creatDirectories();
 	void process(int frame, totalSequenceOrCorrecton type);
-	vector<Point2f> smoothContour(vector<Point2f> contour, int num_spline = 0);
+	vector<Point2f> smoothContour(vector<Point2f> contour, int num_spline = 0, bool closedContour = false);
 	vector<Point2f> smoothCurve(vector<vector<vector<double>>> centerline, int num_spline = 0);
 	Point2f findCenterOfContour(vector<Point2f> contour);
 	vector<Point3f> findPixelsBetweenThicknessAndBladder(Mat image, vector<Point2f> bladderContours, vector<Point2f> thicknessContours, int iter);
@@ -209,6 +208,7 @@ private:
 	}
 
 	//variables
+	const string success = "success";
 	string mainOutputDirectory;
 	string dicomPath;
 	string studyDir;

@@ -4,6 +4,7 @@
 
 #include "morphsnakes.h"
 
+#include "messages.h"
 
 struct sortBasedYCoordinate {
 	bool operator() (cv::Point2f pt1, cv::Point2f pt2) { return (pt1.y < pt2.y); }
@@ -31,32 +32,11 @@ bool Longest(const std::vector<Point>& lhs, const std::vector<Point>& rhs)
 ultrasound::ultrasound() {}
 ultrasound::~ultrasound() {}
 
-ultrasound::ultrasound(string dicomPath, string outputPath) {
+string ultrasound::exportImages(string dicomPath) {
 
-	this->dicomPath = dicomPath;
-	this->outputPath = outputPath;
-
-	string nameAndExt = experimental::filesystem::path(dicomPath).filename().generic_string();
-
-	size_t lastindex = nameAndExt.find_last_of(".");
-	this->filename = nameAndExt.substr(0, lastindex);
-
-	
-	wstring dcm_str(dicomPath.length(), L' ');
-	wstring out_str(dicomPath.length(), L' ');
-	copy(dicomPath.begin(), dicomPath.end(), dcm_str.begin());
-	copy(outputPath.begin(), outputPath.end(), out_str.begin());
-
-	CDicomReader *reader = new CDicomReader();
-	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags
-    
-	this->images = reader->dcmimage_Mat(dcm_str.c_str(), tags[2], tags[3], tags[4], tags[5]);
-	//reader->dcmimage_bmp(dcm_str.c_str(), out_str.c_str()); // read the given dicom and save images into the given folder
-
-	reader->~CDicomReader();
-}
-
-void ultrasound::exportImages(string dicomPath) {
+	if (experimental::filesystem::path(dicomPath).filename().extension().generic_string()!= ".dcm") {
+		return warningMessages::cannotReadTheDicomFile;
+	}
 	
 	this->dicomPath = dicomPath;
 	string nameAndExt = experimental::filesystem::path(dicomPath).filename().generic_string();
@@ -75,13 +55,22 @@ void ultrasound::exportImages(string dicomPath) {
 	//clear memory of images
 	vector<Mat>().swap(images);
 
-	CDicomReader *reader = new CDicomReader();
+	CDicomReader* reader = new CDicomReader();
+	
 	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags
+	if (this->tags.size() < 6) {
+		return warningMessages::cannotGetAllNecessaryDicomTags;
+	}
+		
 	this->images = reader->dcmimage_Mat(dcm_str.c_str(), this->outputImagesDir, tags[2], tags[3], tags[4], tags[5]);
 	//reader->dcmimage_bmp(dcm_str.c_str(), out_str.c_str()); // read the given dicom and save images into the given folder
-
+	if (this->images.size() == 0) {
+		return warningMessages::cannotReadTheDicomFile;
+	}
+	
 	reader->~CDicomReader();
 
+	return this->success;
 }
 
 
@@ -113,7 +102,7 @@ template<class T> morphsnakes::NDImage<T, 2> cimg2ndimage(CImg<T>& img)
 	return morphsnakes::NDImage<T, 2>(img.data(), shape, stride);
 }
 
-void ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint) {
+string ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint) {
 
 	vector<vector<Point2f>>().swap(this->lumenPoints);
 	vector<vector<Point2f>>().swap(this->skinPoints);
@@ -179,29 +168,38 @@ void ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint) {
 		lumen = drawing;
 
 		//find white pixels and calculte their center and store points into vector!
-		vector<Point2f> *lumenPoints = new vector<Point2f>();
-		Point2f *lumenCenter = new Point2f();
-		Point *highestWhitePixel = new Point();
-		ResultOfProcess poitsWereFound = centerAndPointsOfContour(lumen, lumenPoints, lumenCenter, highestWhitePixel);
-		
-		//update the click point! This point is used for the segmentation of the final (almost 5) frames
-		clickPoint = { (int)lumenCenter->x, (int)lumenCenter->y };
+		vector<Point2f>* lumenPoints = new vector<Point2f>();
+		Point2f* lumenCenter = new Point2f();
+		Point* highestWhitePixel = new Point();
+
+		try {
+			ResultOfProcess poitsWereFound = centerAndPointsOfContour(lumen, lumenPoints, lumenCenter, highestWhitePixel);
+			//update the click point! This point is used for the segmentation of the final (almost 5) frames
+			clickPoint = { (int)lumenCenter->x, (int)lumenCenter->y };
 
 
-		if (poitsWereFound == ResultOfProcess::SUCCESS) {
-			//int pix = findDistanceLumenFromSkin(images[i], highestWhitePixel);
-
-			sortUsingPolarCoordinates(lumenPoints, i, lumenCenter, images[i], 0);
-
+			if (poitsWereFound == ResultOfProcess::SUCCESS) {
+				//int pix = findDistanceLumenFromSkin(images[i], highestWhitePixel);
+				ResultOfProcess poitsWereSorted = sortUsingPolarCoordinates(lumenPoints, i, lumenCenter, images[i], 0);
+				if (poitsWereSorted == ResultOfProcess::FAILURE) {
+					return warningMessages::firtFrameSegmentationFailed + to_string(i);
+				}
+			}
+			else if (poitsWereFound == ResultOfProcess::FAILURE && i == this->initialFrame) {
+				return warningMessages::firtFrameSegmentationFailed;
+			}
 		}
-
+		catch (exception e) {
+			return warningMessages::frameSegmentationFailed + to_string(i);
+		}
+		
 		vector<Point2f>().swap(*lumenPoints);
 		vector<vector<Point>>().swap(contours);
 		vector<Vec4i>().swap(hierarchy);
 		drawing.release();
 		lumen.release();
 	}
-
+	return this->success;
 }
 
 
@@ -209,7 +207,7 @@ void ultrasound::finalizeAllBladderContours(vector<vector<Point2f>> points) {
 	vector<vector<Point2f>>().swap(lumenPoints);
 	for (int i = 0; i < points.size(); i++) {
 	
-		points[i] = smoothContour(points[i], 100);
+		points[i] = smoothContour(points[i], 100, true);
 
 		Point2f center = accumulate(points[i].begin(), points[i].end(), Point2f(0.0, 0.0));
 		center.x /= points[i].size();
@@ -384,7 +382,7 @@ void ultrasound::writePointsAndImages() {
 //--------------------------------------------------C O R E - F U N C T I O N S--------------------------------------------------------------
 
 
-void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f *center, Mat image, int skinDistance) {
+ultrasound::ResultOfProcess ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f *center, Mat image, int skinDistance) {
 	
 	transform(p->begin(), p->end(), p->begin(), std::bind2nd(std::minus<Point2f>(), *center));
 
@@ -400,10 +398,10 @@ void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f
 	}
 
 	sort(polarXY.begin(), polarXY.end(), sortBasedYCoordinate);
-
+	
 	Mat mag(polarXY.size(), 1, CV_32F, &polarXY[0].x, 2 * sizeof(float));
 	Mat ang(polarXY.size(), 1, CV_32F, &polarXY[0].y, 2 * sizeof(float));
-
+	
 	Mat xnew, ynew, xnewSkin, ynewSkin;
 	polarToCart(mag, ang, xnew, ynew);
 
@@ -412,12 +410,22 @@ void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f
 	for (int i = 0; i < p->size(); i++) {
 		pp.push_back(Point2f(xnew.at<Float32>(i), ynew.at<Float32>(i)));
 	}
+
 	vector<Point2f> smoothed = smoothContour(sortBasedEuclideanDistance(pp), 0); //num_spline = 50;
 
+	if (!smoothed.empty()) {
+		transform(smoothed.begin(), smoothed.end(), smoothed.begin(), std::bind2nd(std::plus<Point2f>(), *center));
+		this->lumenPoints.push_back(smoothed);
+		this->levelsetSize = round(smoothed.size() / 3);//-----> re-estimate levelsetSize
+	}
+	else if (iter > this->initialFrame) {
+		this->lumenPoints.push_back(this->lumenPoints.back());
+	}
+	else if (iter == this->initialFrame) {
+		return ResultOfProcess::FAILURE;
+	}
 
-	transform(smoothed.begin(), smoothed.end(), smoothed.begin(), std::bind2nd(std::plus<Point2f>(), *center));
-
-	this->lumenPoints.push_back(smoothed);
+	
 
 	LoggerMessage("Bladder borders were detected successfully!");
 	
@@ -432,6 +440,8 @@ void ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f
 
 	vector<Point2f>().swap(polarXY);
 	vector<Point2f>().swap(pp);
+
+	return ResultOfProcess::SUCCESS;
 }
 
 
@@ -458,8 +468,13 @@ ultrasound::ResultOfProcess ultrasound::centerAndPointsOfContour(Mat processed, 
 			center->x += whitePixels.at<Point>(i).x;
 			center->y += whitePixels.at<Point>(i).y;
 	}
-	center->x /= whitePixels.total();
-	center->y /= whitePixels.total();
+	if (whitePixels.total() != 0) {
+		center->x /= whitePixels.total();
+		center->y /= whitePixels.total();
+	}
+	else {
+		return ResultOfProcess::FAILURE;
+	}
 
 
 	whitePixels.release();
@@ -510,18 +525,17 @@ CImg<unsigned char> ultrasound::circle_levelset(int height, int width, const arr
 //sorted.push_back(sorted[0]);
 
 vector<Point2f> ultrasound::sortBasedEuclideanDistance(vector<Point2f> points) {
-
 	vector<Point2f> sorted;
 	Point2f center = accumulate(points.begin(), points.end(), Point2f(0.0, 0.0));
 
 	center.x /= points.size();
 	center.y /= points.size();
 
-
 	int count = 0;
 	double dist = sqrt(pow(points[count].x - center.x, 2) + pow(points[count].y - center.y, 2));
-	//keep as first pixel this has distance from center greater than 10. This was a problem due to ultrasound artifact
-	while (dist < 10) {
+	//keep as first pixel this has distance from center greater than 20. Check only the first 3 points for that. 
+	//Thus we avoid to get a first points as a point close the to the center o points mass due to catheter artifact
+	while (dist < this->levelsetSize-5 && count<4 ) {
 		count++;
 		dist = sqrt(pow(points[count].x - center.x, 2) + pow(points[count].y - center.y, 2));
 	}
@@ -558,7 +572,11 @@ int ultrasound::findLongestVector(vector<vector<Point>> vec) {
 	}
 	return max;
 }
-vector<Point2f> ultrasound::smoothContour(vector<Point2f> contour, int num_spline) {
+
+
+vector<Point2f> ultrasound::smoothContour(vector<Point2f> contour, int num_spline, bool closedContour) {
+
+	if (closedContour) contour.push_back(contour[0]);
 
 	vector<vector<vector<double>>> cl_3D;
 	vector<vector<double>> temp_cl_3D;
@@ -574,6 +592,7 @@ vector<Point2f> ultrasound::smoothContour(vector<Point2f> contour, int num_splin
 	}
 	cl_3D.push_back(temp_cl_3D);
 
+	vector<Point2f>().swap(contour);
 	contour = smoothCurve(cl_3D, num_spline);
 
 	//free some memory
@@ -584,7 +603,9 @@ vector<Point2f> ultrasound::smoothContour(vector<Point2f> contour, int num_splin
 	vector<double>().swap(zz);
 
 	return contour;
+
 }
+
 
 // Cubic spline interpolation to smooth centerline
 vector<Point2f> ultrasound::smoothCurve(vector<vector<vector<double>>> centerline, int num_spline) { //vector<vector<double>>
@@ -655,7 +676,7 @@ vector<Point2f> ultrasound::smoothCurve(vector<vector<vector<double>>> centerlin
 		zspline->AddPoint(1, zpoint);
 		double evaluationPoints = 10000, dt = 1 / evaluationPoints; // 10000
 		// Create an array to store interpolated points
-		double **p = new double *[evaluationPoints];
+		double** p = new double* [evaluationPoints];
 		for (int i = 0; i < evaluationPoints; ++i) {
 			p[i] = new double[3];
 		}
@@ -670,7 +691,7 @@ vector<Point2f> ultrasound::smoothCurve(vector<vector<vector<double>>> centerlin
 		}
 		// Calculate distance between the spline points
 		double smoothed_distance = 0;
-		double * newdst = new double[evaluationPoints - 1];
+		double* newdst = new double[evaluationPoints - 1];
 		for (int i = 0; i < evaluationPoints - 1; ++i) {
 			double diff_x = pow(p[i + 1][0] - p[i][0], 2.0);
 			double diff_y = pow(p[i + 1][1] - p[i][1], 2.0);
@@ -681,10 +702,10 @@ vector<Point2f> ultrasound::smoothCurve(vector<vector<vector<double>>> centerlin
 		//cout << smoothed_distance << " ";
 		double planeDistance;
 		if (num_spline == 0) {
-			 planeDistance = 13; // sampling distance 54
+			planeDistance = 10; // sampling distance 54
 		}
 		else {
-			 planeDistance = ceil(smoothed_distance) / num_spline; //ceil(smoothed_distance) / num_spline
+			planeDistance = ceil(smoothed_distance) / num_spline; //ceil(smoothed_distance) / num_spline
 		}
 		//double planeDistance = ceil(smoothed_distance) / num_spline;//0.5; // sampling distance 54
 		//double planeDistance = ceil(dims[0] * 15 / 1024);
@@ -715,16 +736,16 @@ vector<Point2f> ultrasound::smoothCurve(vector<vector<vector<double>>> centerlin
 	//convert point from double to Point (opencv)
 	vector<Point2f> t;
 
-	t.push_back(Point(centerline[0][0][0], centerline[0][0][1])); //push the first point into the vector
+	//t.push_back(Point(centerline[0][0][0], centerline[0][0][1])); //push the first point into the vector
 
 	for (int i = 0; i < smoothCtr[0].size(); i++) {
 		t.push_back(Point2f(smoothCtr[0][i][0], smoothCtr[0][i][1]));
 	}
+
+	//vector<Point2f>().swap(t);
 
 	//free memory
 	vector<vector<vector<double>>>().swap(smoothCtr);
 
 	return t;// smoothCtr[0]; //return only the first centerline 
 }
-
-

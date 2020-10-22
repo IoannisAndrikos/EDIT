@@ -8,6 +8,8 @@
 
 #pragma once
 #include<math.h>
+using namespace System::Collections::Generic;
+
 using namespace System::Xml::Serialization;
 namespace EDITCore
 {
@@ -84,5 +86,85 @@ namespace EDITCore
 			}
 
 		}*/
+	};
+
+	public ref class EDITResponse
+	{
+	private:
+		static EDITResponse instance;
+		EDITResponse() {}
+		EDITResponse(const EDITResponse%) { throw gcnew System::InvalidOperationException("singleton cannot be copy-constructed"); }
+
+		System::String^ errorMessage = "";
+		List<List<EDITCore::CVPoint^>^>^ allFramesData = gcnew List<List<EDITCore::CVPoint^>^>();
+		List<EDITCore::CVPoint^>^ uniqueFrameData = gcnew List<EDITCore::CVPoint^>();
+		List<double>^ numericData = gcnew List<double>();
+		System::String^ path = "";
+		List <System::String^>^ paths = gcnew List <System::String^>();
+
+	public:
+		static property EDITResponse^ Instance { EDITResponse^ get() { return % instance; } }
+
+		bool isSuccessful() {
+			if (this->errorMessage == "success") {
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+
+		void setSuccessOrFailure(System::String^ errorMessage) {
+			this->allFramesData->Clear();
+			this->uniqueFrameData->Clear();
+			this->numericData->Clear();
+			this->paths->Clear();
+			this->errorMessage = errorMessage;
+		}
+
+		System::String^ getFailure() {
+			return this->errorMessage;
+		}
+
+		void setData(List<List<EDITCore::CVPoint^>^>^ data) {
+			this->allFramesData = data;
+		}
+
+		void setData(List<EDITCore::CVPoint^>^ data) {
+			this->uniqueFrameData = data;
+		}
+
+		void setData(List<double>^ data) {
+			this->numericData = data;
+		}
+
+		void setData(System::String^ path) {
+			this->path = path;
+		}
+
+		void setData(List <System::String^>^ paths) {
+			this->paths = paths;
+		}
+
+		List<List<EDITCore::CVPoint^>^>^ getAllFramesData() {
+			return this->allFramesData;
+		}
+
+		List<EDITCore::CVPoint^>^ getUniqueFramesData() {
+			return this->uniqueFrameData;
+		}
+
+		List<double>^ getNumericData() {
+			return this->numericData;
+		}
+
+		System::String^ getPath() {
+			return this->path;
+		}
+
+		List <System::String^>^ getPaths() {
+			return this->paths;
+		}
+			
 	};
 }

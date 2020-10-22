@@ -444,10 +444,7 @@ vector<Mat> CDicomReader::dcmimage_Mat(const wchar_t * inor, String outputDir, d
 
 vector<double> CDicomReader::GetDicomInfo(const wchar_t * inor)
 {
-
 	vector<double> Tags;
-
-
 	//int instanceNumber=-1;
 	size_t origsize = wcslen(inor) + 1;
 	const size_t newsize = 500;
@@ -458,10 +455,10 @@ vector<double> CDicomReader::GetDicomInfo(const wchar_t * inor)
 
 	wcstombs_s(&convertedChars, dicomname, origsize, inor, _TRUNCATE);
 
-	DcmFileFormat *fileformat = new DcmFileFormat();
+	DcmFileFormat* fileformat = new DcmFileFormat();
 	OFString patientsName;
 
-	DcmItem *ditem = NULL;
+	DcmItem* ditem = NULL;
 
 
 	//OFCondition status = fileformat->loadFile("dicom\\IM-0001-0001.dcm");  findAndGetUint8Array
@@ -470,8 +467,8 @@ vector<double> CDicomReader::GetDicomInfo(const wchar_t * inor)
 	if (status.good())
 	{
 		if (fileformat->getDataset()->findAndGetSequenceItem(DCM_SequenceOfUltrasoundRegions, ditem).good()) {
-			if(ditem->findAndGetOFString(DCM_PhysicalDeltaX, patientsName).good())
-			Tags.push_back(atof(patientsName.data()));
+			if (ditem->findAndGetOFString(DCM_PhysicalDeltaX, patientsName).good())
+				Tags.push_back(atof(patientsName.data()));
 		}
 
 
@@ -504,7 +501,6 @@ vector<double> CDicomReader::GetDicomInfo(const wchar_t * inor)
 				Tags.push_back(atof(patientsName.data()));
 		}
 	}
-
 	return Tags;
 }
 

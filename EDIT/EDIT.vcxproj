@@ -151,6 +151,7 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <SupportJustMyCode>true</SupportJustMyCode>
       <BrowseInformation>true</BrowseInformation>
+      <ExceptionHandling>Async</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -177,6 +178,7 @@
     <ClInclude Include="CImg.h" />
     <ClInclude Include="dctk.h" />
     <ClInclude Include="DicomReader.h" />
+    <ClInclude Include="messages.h" />
     <ClInclude Include="morphsnakes.h" />
     <ClInclude Include="narrowband.h" />
     <ClInclude Include="ndimage.h" />

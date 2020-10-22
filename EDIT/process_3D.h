@@ -60,8 +60,7 @@ public:
 
 	string triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
 	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type); //string path
-	string findPixelsArePlacedIntoGeometries(vector<vector<Point3f>> pixels3D, STLType type);
-	string findPixelsArePlacedIntoGeometries2(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
+	string findPixelsArePlacedIntoGeometries(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
 
 	void setMainOutputDirectory(string studyDir) {
 		this->studyDir = studyDir;
@@ -83,6 +82,14 @@ public:
 		}
 	}
 
+	string getThicknessGeometry() {
+		return this->thicknessGeometry;
+	}
+
+	string getBladderGeometry() {
+		return this->bladderGeometry;
+	}
+
 	//variables
 	double xspace;
 	double yspace;
@@ -90,15 +97,17 @@ public:
 	ofstream logFile;
 	Point2f imageCenter;
 	bool fillHoles = true;
-	string bladderGeometry;
-	string thicknessGeometry;
+	
 
 
 private:
 	//variable
+	const string success = "success";
 	string studyDir;
 	string outputObjectsDir;
 	string loggertxt;
+	string bladderGeometry;
+	string thicknessGeometry;
 
 	//functions
 	string getSTLName(STLType type);
