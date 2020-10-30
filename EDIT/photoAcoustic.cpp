@@ -157,7 +157,8 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 		bladder = smoothContour(bladder, 100);
 	}
 
-	Point2f center = findCenterOfContour(bladder);
+	//Point2f center = findCenterOfContour(bladder);
+	Point2f center = getCenterOfMass(bladder);
 
 	//shift bladder points to (0,0)
 	transform(bladder.begin(), bladder.end(), bladder.begin(), std::bind2nd(std::minus<Point2f>(), center));
@@ -499,15 +500,15 @@ Point2f photoAcoustic::findCenterOfContour(vector<Point2f> contour) {
 }
 
 void photoAcoustic::finalizeAllThicknessContours (vector<vector<Point2f>> points) {
-
 	vector<vector<Point2f>>().swap(finalThicknessPoints);
 	for (int i = 0; i < points.size(); i++) {
+		if (!IsClockwise(points[i])) {
+			reverse(points[i].begin(), points[i].end());
+		}
 
 		points[i] = smoothContour(points[i], 100, true);
 
-		Point2f center = accumulate(points[i].begin(), points[i].end(), Point2f(0.0, 0.0));
-		center.x /= points[i].size();
-		center.y /= points[i].size();
+		Point2f center = getCenterOfMass(points[i]);
 
 		transform(points[i].begin(), points[i].end(), points[i].begin(), std::bind2nd(std::minus<Point2f>(), center));
 
@@ -557,12 +558,34 @@ void photoAcoustic::finalizeAllThicknessContours (vector<vector<Point2f>> points
 		vector<Point2f>().swap(pp);
 	}
 	vector<vector<Point2f>>().swap(points);
+}
 
-	//vector<vector<Point2f>>().swap(finalThicknessPoints);
-	//for (int i = 0; i < thicknessContours.size(); i++) {
-	//	//this->finalThicknessPoints.push_back(smoothContour(thicknessContours[i], 100));
-	//	this->finalThicknessPoints.push_back(sortUsingPolarCoordinates(thicknessContours[i], 100));
-	//}	
+Point2f photoAcoustic::getCenterOfGravity(vector<Point2f> points) {
+
+	Mat matContour = Mat(points);
+	vector<Point2f> pp;
+	convexHull(points, pp, false);
+
+	cv::Point2f Coord;
+	cv::Moments mm = cv::moments(pp, false);
+	double moment10 = mm.m10;
+	double moment01 = mm.m01;
+	double moment00 = mm.m00;
+	Coord.x = moment10 / moment00;
+	Coord.y = moment01 / moment00;
+
+	vector<Point2f>().swap(pp);
+	vector<Point2f>().swap(points);
+	matContour.release();
+	return Coord;
+}
+
+Point2f photoAcoustic::getCenterOfMass(vector<Point2f> points) {
+	Point2f center = accumulate(points.begin(), points.end(), Point2f(0.0, 0.0));
+	center.x /= points.size();
+	center.y /= points.size();
+	vector<Point2f>().swap(points);
+	return center;
 }
 
 
@@ -597,11 +620,29 @@ vector<Point2f> photoAcoustic::smoothContour(vector<Point2f> contour, int num_sp
 	return contour;
 }
 
-vector<Point2f> photoAcoustic::sortUsingPolarCoordinates(vector<Point2f> p, int num_spline) {
+bool photoAcoustic::IsClockwise(vector<Point2f> points)
+{	
+	/*double sum = 0.0;
+	for (int i = 0; i < points.size()-1; i++) {
+		sum += (points[i+1].x - points[i].x) * (points[i + 1].y + points[i].y);
+	}
+	return sum > 0.0;*/
 
-	Point2f center = accumulate(p.begin(), p.end(), Point2f(0.0, 0.0));
-	center.x /= p.size();
-	center.y /= p.size();
+	double area = 0;
+	int j;
+	for (int i = 0; i < points.size(); i++) {
+		j = (i + 1) % points.size();
+		area += points[i].x * points[j].y;
+		area -= points[j].x * points[i].y;
+	}
+	vector<Point2f>().swap(points);
+	return (area/2)>0;
+}
+
+
+vector<Point2f> photoAcoustic::sortClockwise(vector<Point2f> p, int num_spline) {
+
+	Point2f center = getCenterOfMass(p);
 
 	transform(p.begin(), p.end(),
 		p.begin(), std::bind2nd(std::minus<Point2f>(), center));

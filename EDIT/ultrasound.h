@@ -118,6 +118,10 @@ public:
 		return lumenPoints;
 	}
 
+	vector<vector<Point3f>> getlumen3DPoints() {
+		return lumen3DPoints;
+	}
+
 	vector<vector<Point2f>> getSkinPoints() {
 		return skinPoints;
 	}
@@ -142,6 +146,7 @@ public:
 	boolean applyEqualizeHist = false;
 	boolean enableLogging = true;
 	ofstream logFile;
+	Point2f imageCenter;
 	
 private:
 	//functions
@@ -155,8 +160,13 @@ private:
 	vector<Point2f> sortBasedEuclideanDistance(vector<Point2f> points);
 	ResultOfProcess centerAndPointsOfContour(Mat processed, vector<Point2f> *points, Point2f *center, cv::Point *highestWhitePixel = &cv::Point(0,0));
 	ResultOfProcess sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f *center, Mat image, int skinDistance);
+	ResultOfProcess sortClockwise(vector<Point2f>* p, Point2f* center, int iter);
 	int findLongestVector(vector<vector<cv::Point>> vec);
+	Point2f getCenterOfGravity(vector<Point2f> points);
+	Point2f getCenterOfMass(vector<Point2f> points);
+	bool  IsClockwise(vector<Point2f> points);
 
+	
 
 	void LoggerMessage(string message) {
 		if (this->logFile.is_open()) this->logFile << " --> " << message << endl;
@@ -177,6 +187,7 @@ private:
 	int initialFrame;
 	int lastFrame;
 	vector<vector<Point2f>> lumenPoints;
+	vector<vector<Point3f>> lumen3DPoints;
 	vector<vector<Point2f>> skinPoints;
 	vector<double> lumenArea;
 	CImg<unsigned char> levelsetImage;

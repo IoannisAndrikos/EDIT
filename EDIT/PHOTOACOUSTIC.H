@@ -200,8 +200,10 @@ private:
 	vector<Point2f> smoothCurve(vector<vector<vector<double>>> centerline, int num_spline = 0);
 	Point2f findCenterOfContour(vector<Point2f> contour);
 	vector<Point3f> findPixelsBetweenThicknessAndBladder(Mat image, vector<Point2f> bladderContours, vector<Point2f> thicknessContours, int iter);
-	vector<Point2f> sortUsingPolarCoordinates(vector<Point2f> p, int num_spline);
-
+	vector<Point2f> sortClockwise(vector<Point2f> p, int num_spline);
+	Point2f getCenterOfGravity(vector<Point2f> points);
+	Point2f getCenterOfMass(vector<Point2f> points);
+	bool IsClockwise(vector<Point2f> points);
 
 	void LoggerMessage(string message) {
 		if (this->logFile.is_open()) this->logFile << " --> " << message << endl;

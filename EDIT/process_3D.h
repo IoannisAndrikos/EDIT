@@ -43,6 +43,7 @@
 #include <vtk-9.0/vtkCleanPolyData.h>
 #include <vtk-9.0/vtkSelectEnclosedPoints.h>
 #include <vtk-9.0/vtkSTLReader.h>
+#include <vtk-9.0/vtkMath.h>
 //---------------------------------------------------------------------
 
 
@@ -89,6 +90,18 @@ public:
 	string getBladderGeometry() {
 		return this->bladderGeometry;
 	}
+	
+	string getSkinGeometry() {
+		return this->skinGeometry;
+	}
+
+	string getOXYGeometry() {
+		return this->OXYGeometry;
+	}
+
+	string getDeOXYGeometry() {
+		return this->DeOXYGeometry;
+	}
 
 	//variables
 	double xspace;
@@ -108,9 +121,15 @@ private:
 	string loggertxt;
 	string bladderGeometry;
 	string thicknessGeometry;
+	string skinGeometry;
+	string OXYGeometry;
+	string DeOXYGeometry;
 
 	//functions
+	vector<vector<Point3f>> fix3D(vector<vector<Point2f>> point_cloud);
 	string getSTLName(STLType type);
+	void saveGeometryPath(string  filename, STLType type);
+
 
 	void LoggerMessage(string message) {
 		if (this->logFile.is_open()) this->logFile << " --> " << message << endl;

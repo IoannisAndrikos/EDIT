@@ -189,13 +189,17 @@ namespace EDITProcessor {
 
 		 //extract bladder
 		 void extractBladder(int startingFrame, int endingFrame, EDITCore::CVPoint ^userPoint) {
+
+			 vector<double> Tags = ultr->getTags();
+			 ultr->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
+			 ultr->imageCenter.y = (Tags[5] - Tags[4]) / 2;
+
 			string errorMessage = ultr->processing(startingFrame, endingFrame, cv::Point(round(userPoint->GetX()), round(userPoint->GetY())));
 
-			vector<vector<Point2f>> lumenPoints = ultr->getlumenPoints();
 			response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
-			response->setData(vectorPointsTOListPoints(lumenPoints));
-
-			releaseMemory(lumenPoints);
+			if (response->isSuccessful()) {
+				response->setData(vectorPointsTOListPoints(ultr->getlumenPoints()));
+			}
 		 }
 
 		 //extract STL
@@ -227,17 +231,18 @@ namespace EDITProcessor {
 			 proc->distanceBetweenFrames = 0.203;
 			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
 			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
-
-
+			 
 			 proc->fillHoles = fillHoles;
 			 ultr->extractSkinPoints(listPointsToVectorPoints(bladderPoints));
 			 releaseMemory(bladderPoints);
-			 vector<vector<Point2f>> skinPoints = ultr->getSkinPoints();
-			 string STLPath = proc->triangulation(skinPoints, process_3D::STLType::SKIN);
-			 releaseMemory(skinPoints);
+			
+			 string errorMessage = proc->triangulation(ultr->getSkinPoints(), process_3D::STLType::SKIN);
 
-			 response->setSuccessOrFailure("");
-			 response->setData(msclr::interop::marshal_as<System::String^>(STLPath));
+			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+			 if (response->isSuccessful()) {
+				 string STLPath = proc->getSkinGeometry();
+				 response->setData(msclr::interop::marshal_as<System::String^>(STLPath));
+			 }
 		 }
 
 
@@ -353,19 +358,19 @@ namespace EDITProcessor {
 		 }
 
 
-
 		 void extractOXYandDeOXYPoints(List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
 			photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::OXY);
-			string OXYPath = proc->findPixelsArePlacedIntoGeometries(photo->getSharderPoints(), photo->getInterpolatedPoints(), process_3D::STLType::OXY);
+			string errorMessage1 = proc->findPixelsArePlacedIntoGeometries(photo->getSharderPoints(), photo->getInterpolatedPoints(), process_3D::STLType::OXY);
 			photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::DeOXY);
-			string DeOXYPath = proc->findPixelsArePlacedIntoGeometries(photo->getSharderPoints(), photo->getInterpolatedPoints(), process_3D::STLType::DeOXY);
+			string errorMessage2 = proc->findPixelsArePlacedIntoGeometries(photo->getSharderPoints(), photo->getInterpolatedPoints(), process_3D::STLType::DeOXY);
 
-			 List<System::String^> ^paths = gcnew List<System::String^>();
-			 paths->Add(msclr::interop::marshal_as<System::String^>(OXYPath));
-			 paths->Add(msclr::interop::marshal_as<System::String^>(DeOXYPath));
-			
-			 response->setSuccessOrFailure("");
-			 response->setData(paths);
+			response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage2));
+			if (response->isSuccessful()) {
+				List<System::String^>^ paths = gcnew List<System::String^>();
+				paths->Add(msclr::interop::marshal_as<System::String^>(proc->getOXYGeometry()));
+				paths->Add(msclr::interop::marshal_as<System::String^>(proc->getDeOXYGeometry()));
+				response->setData(paths);
+			}
 		 }
 
 

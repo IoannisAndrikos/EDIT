@@ -7,7 +7,7 @@
 #include "messages.h"
 
 struct sortBasedYCoordinate {
-	bool operator() (cv::Point2f pt1, cv::Point2f pt2) { return (pt1.y < pt2.y); }
+	bool operator() (cv::Point2f pt1, cv::Point2f pt2) { return (pt1.y  < pt2.y ); }
 } sortBasedYCoordinate;
 
 
@@ -23,6 +23,20 @@ struct EuclideanDistance
 private:
 	Point2f p;
 };
+
+struct linedToCenter
+{
+	linedToCenter(const Point2f& _p) : p(_p) {}
+
+	bool operator()(const Point2f& lhs) const
+	{
+		return lhs.x == p.x;
+	}
+
+private:
+	Point2f p;
+};
+
 
 bool Longest(const std::vector<Point>& lhs, const std::vector<Point>& rhs)
 {
@@ -179,8 +193,8 @@ string ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint)
 
 
 			if (poitsWereFound == ResultOfProcess::SUCCESS) {
-				//int pix = findDistanceLumenFromSkin(images[i], highestWhitePixel);
-				ResultOfProcess poitsWereSorted = sortUsingPolarCoordinates(lumenPoints, i, lumenCenter, images[i], 0);
+				//ResultOfProcess poitsWereSorted = sortUsingPolarCoordinates(lumenPoints, i, lumenCenter, images[i], 0);
+				ResultOfProcess poitsWereSorted = sortClockwise(lumenPoints, lumenCenter, i);
 				if (poitsWereSorted == ResultOfProcess::FAILURE) {
 					return warningMessages::firtFrameSegmentationFailed + to_string(i);
 				}
@@ -206,15 +220,15 @@ string ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint)
 void ultrasound::finalizeAllBladderContours(vector<vector<Point2f>> points) {
 	vector<vector<Point2f>>().swap(lumenPoints);
 	for (int i = 0; i < points.size(); i++) {
-	
+		if (!IsClockwise(points[i])) {
+			reverse(points[i].begin(), points[i].end());
+		}
+
 		points[i] = smoothContour(points[i], 100, true);
 
-		Point2f center = accumulate(points[i].begin(), points[i].end(), Point2f(0.0, 0.0));
-		center.x /= points[i].size();
-		center.y /= points[i].size();
+		Point2f center = getCenterOfMass(points[i]);
 
 		transform(points[i].begin(), points[i].end(), points[i].begin(), std::bind2nd(std::minus<Point2f>(), center));
-
 
 		Mat xpts(points[i].size(), 1, CV_32F, &points[i][0].x, 2 * sizeof(float));
 		Mat ypts(points[i].size(), 1, CV_32F, &points[i][0].y, 2 * sizeof(float));
@@ -229,26 +243,26 @@ void ultrasound::finalizeAllBladderContours(vector<vector<Point2f>> points) {
 		auto min = std::min_element(polarAngles.begin(), polarAngles.end());
 
 		int minIndex = distance(polarAngles.begin(), min);
-	
+
 		if (minIndex != 0) {
 			sortedPolarXY.insert(sortedPolarXY.end(), polarXY.begin() + minIndex, polarXY.end());
 			polarXY.erase(polarXY.begin() + minIndex, polarXY.end());
 		}
 		sortedPolarXY.insert(sortedPolarXY.end(), polarXY.begin(), polarXY.end());
-		
+
 		Mat mag(sortedPolarXY.size(), 1, CV_32F, &sortedPolarXY[0].x, 2 * sizeof(float));
 		Mat ang(sortedPolarXY.size(), 1, CV_32F, &sortedPolarXY[0].y, 2 * sizeof(float));
 		Mat xnew, ynew;
 		polarToCart(mag, ang, xnew, ynew);
 		vector<Point2f> pp;
 
-		for (int j = 0; j<points[i].size(); j++) {
+		for (int j = 0; j < points[i].size(); j++) {
 			pp.push_back(Point2f(xnew.at<Float32>(j), ynew.at<Float32>(j)));
 		}
 
 		transform(pp.begin(), pp.end(), pp.begin(), std::bind2nd(std::plus<Point2f>(), center));
 		this->lumenPoints.push_back(pp);
-	
+
 		xpts.release();
 		ypts.release();
 		mag.release();
@@ -259,6 +273,7 @@ void ultrasound::finalizeAllBladderContours(vector<vector<Point2f>> points) {
 		vector<Point2f>().swap(polarXY);
 		vector<Point2f>().swap(sortedPolarXY);
 		vector<Point2f>().swap(pp);
+			
 	}
 	vector<vector<Point2f>>().swap(points);
 }
@@ -272,10 +287,8 @@ void ultrasound::extractSkinPoints(vector<vector<Point2f>> bladderPoints) {
 	int imageCount = this->initialFrame;
 
 	for (int i = 0; i< skinPoints.size(); i++) {
-
-		Point2f center = accumulate(skinPoints[i].begin(), skinPoints[i].end(), Point2f(0.0, 0.0));
-		center.x /= skinPoints[i].size();
-		center.y /= skinPoints[i].size();
+		 
+		Point2f center = getCenterOfMass(skinPoints[i]);
 
 		transform(skinPoints[i].begin(), skinPoints[i].end(), skinPoints[i].begin(), std::bind2nd(std::minus<Point2f>(), center));
 
@@ -304,9 +317,7 @@ void ultrasound::extractSkinPoints(vector<vector<Point2f>> bladderPoints) {
 	
 	int distBladderSkin = 0;
 
-	//for (int j = skinPoints[i][index].y + center.y; j >= 0; j--) {
 	for (int j = 0; j < skinPoints[i][index].y + center.y; j++) {
-		//if ((int)image.at<uchar>(j, skinPoints[i][index].x + center.x) == 255) {
 		if ((int)image.at<uchar>(j, skinPoints[i][index].x + center.x) == 0) {
 			distBladderSkin++;
 		}
@@ -317,7 +328,6 @@ void ultrasound::extractSkinPoints(vector<vector<Point2f>> bladderPoints) {
 
 	int dist = skinPoints[i][index].y + center.y - distBladderSkin;
 
-	//cout << dist << endl;
 
 	for (int j = 0; j < SkinPolarXY.size(); j++) {
 		SkinPolarXY[j].x += dist;
@@ -329,10 +339,9 @@ void ultrasound::extractSkinPoints(vector<vector<Point2f>> bladderPoints) {
 	polarToCart(mag, ang, xnew, ynew);
 	vector<Point2f> pp;
 
-	//cout << SkinPolarXY.size() << endl;
+
 	for (int j = 0; j < SkinPolarXY.size(); j++) {
 		pp.push_back(Point2f(xnew.at<Float32>(j) + center.x, ynew.at<Float32>(j) + center.y));
-		//images[imageCount].at<uchar>(round(ynew.at<Float32>(j) + center.y), round(xnew.at<Float32>(j) + center.x)) = 255;
 	}
 
 	vector<Point2f>().swap(this->skinPoints[i]);
@@ -382,8 +391,8 @@ void ultrasound::writePointsAndImages() {
 //--------------------------------------------------C O R E - F U N C T I O N S--------------------------------------------------------------
 
 
-ultrasound::ResultOfProcess ultrasound::sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f *center, Mat image, int skinDistance) {
-	
+ultrasound::ResultOfProcess ultrasound::sortUsingPolarCoordinates(vector<Point2f>* p, int iter, Point2f* center, Mat image, int skinDistance) {
+
 	transform(p->begin(), p->end(), p->begin(), std::bind2nd(std::minus<Point2f>(), *center));
 
 	Mat xpts(p->size(), 1, CV_32F, &p->at(0).x, 2 * sizeof(float));
@@ -398,11 +407,16 @@ ultrasound::ResultOfProcess ultrasound::sortUsingPolarCoordinates(vector<Point2f
 	}
 
 	sort(polarXY.begin(), polarXY.end(), sortBasedYCoordinate);
-	
+
+	for (int i = 0; i < polarXY.size(); i++) {
+		cout << "Angle =  " << polarXY[i].y * 180 / CV_PI << " R = " << polarXY[i].x << endl;
+	}
+
+
 	Mat mag(polarXY.size(), 1, CV_32F, &polarXY[0].x, 2 * sizeof(float));
 	Mat ang(polarXY.size(), 1, CV_32F, &polarXY[0].y, 2 * sizeof(float));
-	
-	Mat xnew, ynew, xnewSkin, ynewSkin;
+
+	Mat xnew, ynew;
 	polarToCart(mag, ang, xnew, ynew);
 
 	vector<Point2f> pp;
@@ -425,23 +439,145 @@ ultrasound::ResultOfProcess ultrasound::sortUsingPolarCoordinates(vector<Point2f
 		return ResultOfProcess::FAILURE;
 	}
 
-	
-
 	LoggerMessage("Bladder borders were detected successfully!");
-	
+
 	xpts.release();
 	ypts.release();
 	mag.release();
 	ang.release();
 	xnew.release();
 	ynew.release();
-	xnewSkin.release();
-	ynewSkin.release();
 
 	vector<Point2f>().swap(polarXY);
 	vector<Point2f>().swap(pp);
 
 	return ResultOfProcess::SUCCESS;
+}
+
+
+ultrasound::ResultOfProcess ultrasound::sortClockwise(vector<Point2f>* p, Point2f* center, int iter) {
+
+	transform(p->begin(), p->end(), p->begin(), std::bind2nd(std::minus<Point2f>(), *center));
+
+	Mat xpts(p->size(), 1, CV_32F, &p->at(0).x, 2 * sizeof(float));
+	Mat ypts(p->size(), 1, CV_32F, &p->at(0).y, 2 * sizeof(float));
+
+	Mat magnitude, angle;
+	cartToPolar(xpts, ypts, magnitude, angle);
+
+	vector<Point2f> polarXY, sortedPolarXY;
+	for (int i = 0; i < p->size(); i++) {
+		polarXY.push_back(Point2f(magnitude.at<Float32>(i), angle.at<Float32>(i)));
+	}
+	sort(polarXY.begin(), polarXY.end(), sortBasedYCoordinate);
+
+	////--------------store the first point--------------
+	//investigate if there are points with greater radius than polarXY[0] close to the polarXY[0]
+	int count = 0;
+	for (int i = 1; i < 5; i++) {
+		if (polarXY[i].x - polarXY[count].x > 4) {
+			count = i;
+		}
+	}
+
+	sortedPolarXY.push_back(polarXY[count]);
+	if (count == 0) {
+		
+		polarXY.erase(polarXY.begin());
+	}
+	else {
+		rotate(polarXY.begin(), polarXY.begin()+count-1, polarXY.end());
+	}
+
+	////--------------store the next 3 points--------------
+	vector<double> nextSetPoints;
+	int minIndex;
+
+	//--------------store the rest points--------------
+	while (!polarXY.empty()) {
+		for (int i = 0; i < polarXY.size(); i++) {
+			//calculate euclidean distance in polar ccordinates
+			nextSetPoints.push_back(sqrt(pow(polarXY[i].x, 2) + pow(sortedPolarXY.back().x, 2)  - 2*polarXY[i].x*sortedPolarXY.back().x * cos(polarXY[i].y - sortedPolarXY.back().y)));
+		}
+		auto min = std::min_element(nextSetPoints.begin(), nextSetPoints.end());
+		minIndex = distance(nextSetPoints.begin(), min);
+		sortedPolarXY.push_back(polarXY[minIndex]);
+		polarXY.erase(polarXY.begin() + minIndex);
+		vector<double>().swap(nextSetPoints);
+	}
+
+	Mat mag(sortedPolarXY.size(), 1, CV_32F, &sortedPolarXY[0].x, 2 * sizeof(float));
+	Mat ang(sortedPolarXY.size(), 1, CV_32F, &sortedPolarXY[0].y, 2 * sizeof(float));
+
+	Mat xnew, ynew;
+	polarToCart(mag, ang, xnew, ynew);
+
+	vector<Point2f> pp;
+
+	for (int i = 0; i < p->size(); i++) {
+		pp.push_back(Point2f(xnew.at<Float32>(i), ynew.at<Float32>(i)));
+	}
+
+	vector<Point2f> smoothed = smoothContour(pp, 0, true); //num_spline = 50;
+
+	if (!smoothed.empty()) {
+		transform(smoothed.begin(), smoothed.end(), smoothed.begin(), std::bind2nd(std::plus<Point2f>(), *center));
+		this->lumenPoints.push_back(smoothed);
+		this->levelsetSize = round(smoothed.size() / 3);//-----> re-estimate levelsetSize
+	}
+	else if (iter > this->initialFrame) {
+		this->lumenPoints.push_back(this->lumenPoints.back());
+	}
+	else if (iter == this->initialFrame) {
+		return ResultOfProcess::FAILURE;
+	}
+
+	LoggerMessage("Bladder borders were detected successfully!");
+
+	xpts.release();
+	ypts.release();
+	mag.release();
+	ang.release();
+	xnew.release();
+	ynew.release();
+	vector<Point2f>().swap(polarXY);
+	vector<Point2f>().swap(sortedPolarXY);
+	vector<Point2f>().swap(pp);
+	vector<Point2f>().swap(smoothed);
+
+	return ResultOfProcess::SUCCESS;
+}
+
+
+Point2f ultrasound::getCenterOfGravity(vector<Point2f> points) {
+
+	Mat matContour = Mat(points);
+	vector<Point2f> pp;
+	convexHull(points, pp, false);
+
+	cv::Point2f Coord;
+	cv::Moments mm = cv::moments(pp, false);
+	double moment10 = mm.m10;
+	double moment01 = mm.m01;
+	double moment00 = mm.m00;
+	Coord.x = moment10 / moment00;
+	Coord.y = moment01 / moment00;
+
+	vector<Point2f>().swap(pp);
+	vector<Point2f>().swap(points);
+	matContour.release();
+	return Coord;
+}
+
+
+Point2f ultrasound::getCenterOfMass(vector<Point2f> points) {
+
+	Point2f center = accumulate(points.begin(), points.end(), Point2f(0.0, 0.0));
+	center.x /= points.size();
+	center.y /= points.size();
+
+	vector<Point2f>().swap(points);
+	return center;
 }
 
 
@@ -469,8 +605,7 @@ ultrasound::ResultOfProcess ultrasound::centerAndPointsOfContour(Mat processed, 
 			center->y += whitePixels.at<Point>(i).y;
 	}
 	if (whitePixels.total() != 0) {
-		center->x /= whitePixels.total();
-		center->y /= whitePixels.total();
+		*center = getCenterOfMass(*points);
 	}
 	else {
 		return ResultOfProcess::FAILURE;
@@ -526,16 +661,13 @@ CImg<unsigned char> ultrasound::circle_levelset(int height, int width, const arr
 
 vector<Point2f> ultrasound::sortBasedEuclideanDistance(vector<Point2f> points) {
 	vector<Point2f> sorted;
-	Point2f center = accumulate(points.begin(), points.end(), Point2f(0.0, 0.0));
-
-	center.x /= points.size();
-	center.y /= points.size();
+	Point2f center = getCenterOfMass(points);
 
 	int count = 0;
 	double dist = sqrt(pow(points[count].x - center.x, 2) + pow(points[count].y - center.y, 2));
 	//keep as first pixel this has distance from center greater than 20. Check only the first 3 points for that. 
 	//Thus we avoid to get a first points as a point close the to the center o points mass due to catheter artifact
-	while (dist < this->levelsetSize-5 && count<4 ) {
+	while (dist < 50 && count<10 ) {
 		count++;
 		dist = sqrt(pow(points[count].x - center.x, 2) + pow(points[count].y - center.y, 2));
 	}
@@ -571,6 +703,26 @@ int ultrasound::findLongestVector(vector<vector<Point>> vec) {
 		}
 	}
 	return max;
+}
+
+bool ultrasound::IsClockwise(vector<Point2f> points)
+{/*
+	double sum = 0.0;
+	for (int i = 0; i < points.size()-1; i++) {
+		sum += (points[i+1].x - points[i].x) * (points[i + 1].y + points[i].y);
+	}
+	return sum > 0.0;*/
+
+
+	double area = 0;
+	int j;
+	for (int i = 0; i < points.size(); i++) {
+		j = (i + 1) % points.size();
+		area += points[i].x * points[j].y;
+		area -= points[j].x * points[i].y;
+	}
+	vector<Point2f>().swap(points);
+	return (area/2)>0;
 }
 
 
