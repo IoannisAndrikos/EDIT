@@ -175,13 +175,14 @@ namespace EDITProcessor {
 			response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
 			if (response->isSuccessful()) {
 				string outputimagesDir = ultr->getOutputImagesDir();
-
 				vector<double> tags = ultr->getTags();
-				List<double>^ pixelSpacing = gcnew List<double>();
-				pixelSpacing->Add(tags[0] * 10);
-				pixelSpacing->Add(tags[1] * 10);
+				//Pixel Spacing
+				response->addNumericData(tags[0] * 10);
+				response->addNumericData(tags[1] * 10);
+				//image size
+				response->addNumericData(tags[3] - tags[2]);
+				response->addNumericData(tags[5] - tags[4]);
 				releaseMemory(tags);
-				response->setData(pixelSpacing);
 				response->setData(msclr::interop::marshal_as<System::String^>(outputimagesDir));
 			}
 		}
@@ -263,6 +264,14 @@ namespace EDITProcessor {
 			 string errorMessage = photo->exportOXYImages(Dicom_file); // 
 			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
 			 if (response->isSuccessful()) {
+				 vector<double> tags = photo->getTags();
+				 //Pixel Spacing
+				 response->addNumericData(tags[0] * 10);
+				 response->addNumericData(tags[1] * 10);
+				 //image size
+				 response->addNumericData(tags[3] - tags[2]);
+				 response->addNumericData(tags[5] - tags[4]);
+				 releaseMemory(tags);
 				 string outputimagesDir = photo->getOutputOXYImagesDir();
 				 response->setData(msclr::interop::marshal_as<System::String^>(outputimagesDir));
 			 }
@@ -274,6 +283,14 @@ namespace EDITProcessor {
 			 string errorMessage = photo->exportDeOXYImages(Dicom_file); // 1
 			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
 			 if (response->isSuccessful()) {
+				 vector<double> tags = photo->getTags();
+				 //Pixel Spacing
+				 response->addNumericData(tags[0] * 10);
+				 response->addNumericData(tags[1] * 10);
+				 //image size
+				 response->addNumericData(tags[3] - tags[2]);
+				 response->addNumericData(tags[5] - tags[4]);
+				 releaseMemory(tags);
 				 string outputimagesDir = photo->getOutputDeOXYImagesDir();
 				 response->setData(msclr::interop::marshal_as<System::String^>(outputimagesDir));
 			 }

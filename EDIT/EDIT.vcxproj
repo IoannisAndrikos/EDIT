@@ -166,6 +166,21 @@
     </Bscmake>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ALGLIB_src\alglibinternal.cpp" />
+    <ClCompile Include="ALGLIB_src\alglibmisc.cpp" />
+    <ClCompile Include="ALGLIB_src\ap.cpp" />
+    <ClCompile Include="ALGLIB_src\dataanalysis.cpp" />
+    <ClCompile Include="ALGLIB_src\diffequations.cpp" />
+    <ClCompile Include="ALGLIB_src\fasttransforms.cpp" />
+    <ClCompile Include="ALGLIB_src\integration.cpp" />
+    <ClCompile Include="ALGLIB_src\interpolation.cpp" />
+    <ClCompile Include="ALGLIB_src\linalg.cpp" />
+    <ClCompile Include="ALGLIB_src\optimization.cpp" />
+    <ClCompile Include="ALGLIB_src\solvers.cpp" />
+    <ClCompile Include="ALGLIB_src\specialfunctions.cpp" />
+    <ClCompile Include="ALGLIB_src\statistics.cpp" />
+    <ClCompile Include="BSpline.cpp" />
+    <ClCompile Include="Curve.cpp" />
     <ClCompile Include="DicomReader.cpp" />
     <ClCompile Include="EDIT.cpp" />
     <ClCompile Include="maincpp.cpp" />
@@ -173,9 +188,26 @@
     <ClCompile Include="process_3D.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="ultrasound.cpp" />
+    <ClCompile Include="Vector.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ALGLIB_src\alglibinternal.h" />
+    <ClInclude Include="ALGLIB_src\alglibmisc.h" />
+    <ClInclude Include="ALGLIB_src\ap.h" />
+    <ClInclude Include="ALGLIB_src\dataanalysis.h" />
+    <ClInclude Include="ALGLIB_src\diffequations.h" />
+    <ClInclude Include="ALGLIB_src\fasttransforms.h" />
+    <ClInclude Include="ALGLIB_src\integration.h" />
+    <ClInclude Include="ALGLIB_src\interpolation.h" />
+    <ClInclude Include="ALGLIB_src\linalg.h" />
+    <ClInclude Include="ALGLIB_src\optimization.h" />
+    <ClInclude Include="ALGLIB_src\solvers.h" />
+    <ClInclude Include="ALGLIB_src\specialfunctions.h" />
+    <ClInclude Include="ALGLIB_src\statistics.h" />
+    <ClInclude Include="ALGLIB_src\stdafx.h" />
+    <ClInclude Include="BSpline.h" />
     <ClInclude Include="CImg.h" />
+    <ClInclude Include="Curve.h" />
     <ClInclude Include="dctk.h" />
     <ClInclude Include="DicomReader.h" />
     <ClInclude Include="messages.h" />
@@ -188,6 +220,7 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="ultrasound.h" />
+    <ClInclude Include="Vector.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

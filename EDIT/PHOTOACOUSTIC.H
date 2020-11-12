@@ -14,6 +14,10 @@
 #include <codecvt>
 #include <experimental/filesystem>
 #include "DicomReader.h"
+#include "spline.h"
+
+#include "ALGLIB_src/interpolation.h"
+#include "BSpline.h"
 
 
 #include <opencv2/core/core.hpp>
@@ -193,6 +197,7 @@ public:
 
 private:
 	//functions
+	enum interpolationMethod {CUBIC, AKIMA, CATMULLROM, MONOTONE, LINEAR};
 	enum totalSequenceOrCorrecton { TOTAL, CORRECTION};
 	void creatDirectories();
 	void process(int frame, totalSequenceOrCorrecton type);
@@ -203,6 +208,8 @@ private:
 	vector<Point2f> sortClockwise(vector<Point2f> p, int num_spline);
 	Point2f getCenterOfGravity(vector<Point2f> points);
 	Point2f getCenterOfMass(vector<Point2f> points);
+	vector<Point2f> interpolateConvexPoints(vector<Point2f> p, interpolationMethod method = interpolationMethod::AKIMA);
+	vector<Point2f> findOppositePoints(vector<Point2f> p);
 	bool IsClockwise(vector<Point2f> points);
 
 	void LoggerMessage(string message) {

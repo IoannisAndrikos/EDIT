@@ -143,15 +143,40 @@ void photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 	//threshold(red_PA, red_PA, 100, 255, THRESH_BINARY);
 	Canny(red_PA, edge_OXY, 90, 270, 3);
 
-	vector<Point2f> bladder;// = this->lumenPoints[frame - this->initialFrame]; //--------------------------->??????
+	vector<Point2f> convexBladderRepeat1, bladder;// = this->lumenPoints[frame - this->initialFrame]; //--------------------------->??????
 	if (type == totalSequenceOrCorrecton::TOTAL) {
-		convexHull(this->lumenPoints[frame - this->initialFrame], bladder, true);
+		//double convex filtering
+		convexHull(this->lumenPoints[frame - this->initialFrame], convexBladderRepeat1, true);
+		convexBladderRepeat1 = interpolateConvexPoints(convexBladderRepeat1, interpolationMethod::MONOTONE);
+		convexHull(convexBladderRepeat1, bladder, true);
+		vector<Point2f>().swap(convexBladderRepeat1);
+		bladder = interpolateConvexPoints(bladder, interpolationMethod::AKIMA);
+
+
+
+		String correctedBladderTXT = "C:/Users/Legion Y540/Desktop/mlk/bb.txt";
+		ofstream bladderFile;
+		bladderFile.open(correctedBladderTXT);
+
+		for (int i = 0; i < bladder.size(); i++) {
+			bladderFile << bladder[i].x << " " << bladder[i].y << endl;
+		}
+		bladderFile.close();
+
 
 		bladder.push_back(bladder[0]);
 		bladder = smoothContour(bladder, 100);
 	}
 	else {
-		convexHull(this->contourForFix, bladder, true);
+		//double convex filtering
+		convexHull(this->contourForFix, convexBladderRepeat1, true);
+		convexBladderRepeat1 = interpolateConvexPoints(convexBladderRepeat1, interpolationMethod::MONOTONE);
+		convexHull(convexBladderRepeat1, bladder, true);
+		vector<Point2f>().swap(convexBladderRepeat1);
+		bladder = interpolateConvexPoints(bladder, interpolationMethod::AKIMA);
+
+
+
 		vector<Point2f>().swap(this->contourForFix);
 		bladder.push_back(bladder[0]);
 		bladder = smoothContour(bladder, 100);
@@ -619,6 +644,162 @@ vector<Point2f> photoAcoustic::smoothContour(vector<Point2f> contour, int num_sp
 
 	return contour;
 }
+
+
+
+vector<Point2f> photoAcoustic::interpolateConvexPoints(vector<Point2f> p, interpolationMethod method) {
+
+
+	vector<double> diff;
+	for (int i = 0; i < p.size() - 2; i++) {
+		diff.push_back(abs((p[i].y - p[i + 1].y) / (p[i].x - p[i + 1].x) - (p[i + 1].y - p[i + 2].y) / (p[i + 1].x - p[i + 2].x)));
+	}
+	auto min = min_element(diff.begin(), diff.end());
+	int minIndex = distance(diff.begin(), min);
+	if (minIndex > 0) {
+		rotate(p.begin(), p.begin() + minIndex + 1, p.end());
+	}
+
+	vector<double>().swap(diff);
+
+	
+	Point2f center = getCenterOfGravity(p);
+
+	transform(p.begin(), p.end(), p.begin(), std::bind2nd(std::minus<Point2f>(), center));
+
+	Mat xpts(p.size(), 1, CV_32F, &p.at(0).x, 2 * sizeof(float));
+	Mat ypts(p.size(), 1, CV_32F, &p.at(0).y, 2 * sizeof(float));
+	Mat magnitude, angle;
+	cartToPolar(xpts, ypts, magnitude, angle);
+	vector<Point2f> polarXY, interpolated;
+	for (int i = 0; i < p.size(); i++) {
+		polarXY.push_back(Point2f(magnitude.at<float>(i), angle.at<float>(i)));
+	}
+
+	sort(polarXY.begin(), polarXY.end(), sortPolar);
+
+	polarXY.push_back(Point2f(polarXY[0].x, polarXY[0].y + 2 * CV_PI));
+	double minAngle = polarXY[0].y;
+	double maxAngle = polarXY.back().y;
+
+
+	//------------------------LIBRARY 1--------------------
+	//Curve* curve = new BSpline();
+	////Curve* curve = new Bezier();
+	////Curve* curve = new CatmullRom();
+	//curve->set_steps(100); // generate 100 interpolate points between the last 4 way points
+
+	//for (int i = 0; i < polarXY.size(); i++) {
+	//	curve->add_way_point(Vector(polarXY[i].x, polarXY[i].y, 0));
+	//}
+	////curve->add_way_point(Vector(polarXY[0].x, polarXY[0].y, 0));
+
+	//for (int i = 0; i < curve->node_count(); ++i) {
+	//	interpolated.push_back(Point2f(curve->node(i).x, curve->node(i).y));
+	//}
+	//delete curve;
+
+
+	//------------------------LIBRARY 2--------------------
+	/*vector<double> X, Y;
+	for (int i = 0; i < polarXY.size(); i++) {
+		X.push_back(polarXY[i].y);
+		Y.push_back(polarXY[i].x);
+	}
+
+	tk::spline s;
+	s.set_points(X, Y);
+
+	for (double i = 0; i <= 2 * CV_PI; i = i + 0.02) {
+		interpolated.push_back(Point2f(s(i), i));
+	}*/
+
+	//------------------------LIBRARY 3--------------------
+	string xx = "[" + to_string(polarXY[0].x);
+	string yy = "[" + to_string(polarXY[0].y);
+
+	for (int i = 1; i < polarXY.size(); i++) {
+		xx += "," + to_string(polarXY[i].x);
+		yy += "," + to_string(polarXY[i].y);
+	}
+	xx += "]";
+	yy += "]";
+
+	alglib::real_1d_array X = xx.c_str();
+	alglib::real_1d_array Y = yy.c_str();
+	alglib::ae_int_t n = 100;
+	alglib::spline1dinterpolant s;
+
+	switch (method) {
+	case interpolationMethod::LINEAR:
+		alglib::spline1dbuildlinear(Y, X, s);
+		break;
+	case interpolationMethod::AKIMA:
+		alglib::spline1dbuildakima(Y, X, s);
+		break;
+	case interpolationMethod::CATMULLROM:
+		alglib::spline1dbuildcatmullrom(Y, X, s);
+		break;
+	case interpolationMethod::CUBIC:
+		alglib::spline1dbuildcubic(Y, X, s);
+		break;
+	case interpolationMethod::MONOTONE:
+		alglib::spline1dbuildmonotone(Y, X, s);
+		break;
+	}
+
+	for (double i = minAngle; i <= maxAngle; i = i + 0.08) {
+		interpolated.push_back(Point2f(spline1dcalc(s, i), i));
+	}
+	//-----------------------------------------------------
+
+
+	Mat mag(interpolated.size(), 1, CV_32F, &interpolated[0].x, 2 * sizeof(float));
+	Mat ang(interpolated.size(), 1, CV_32F, &interpolated[0].y, 2 * sizeof(float));
+
+	Mat xnew, ynew;
+	polarToCart(mag, ang, xnew, ynew);
+
+	vector<Point2f> pp;
+
+	for (int i = 0; i < interpolated.size(); i++) {
+		pp.push_back(Point2f(xnew.at<float>(i), ynew.at<float>(i)));
+	}
+
+	transform(pp.begin(), pp.end(), pp.begin(), std::bind2nd(std::plus<Point2f>(), center));
+
+
+	//vector<double>().swap(X); //if use libray 2
+	//vector<double>().swap(Y);
+	vector<Point2f>().swap(polarXY);
+	vector<Point2f>().swap(interpolated);
+	xpts.release();
+	ypts.release();
+	magnitude.release();
+	angle.release();
+	mag.release();
+	ang.release();
+	return pp;
+
+}
+
+
+vector<Point2f>  photoAcoustic::findOppositePoints(vector<Point2f> p) {
+
+	vector<Point2f> oposite;
+	for (int i = 0; i < p.size(); i++) {
+		if (p[i].y <= CV_PI) {
+			oposite.push_back(Point2f(p[i].x, p[i].y + CV_PI));
+		}
+		else {
+			oposite.push_back(Point2f(p[i].x, p[i].y - CV_PI));
+		}
+	}
+
+	vector<Point2f>().swap(p);
+	return oposite;
+}
+
 
 bool photoAcoustic::IsClockwise(vector<Point2f> points)
 {	

@@ -138,6 +138,11 @@ namespace EDITCore
 			this->numericData = data;
 		}
 
+		void addNumericData(double value) {
+			this->numericData->Add(value);
+		}
+
+
 		void setData(System::String^ path) {
 			this->path = path;
 		}

@@ -19,6 +19,12 @@
     <Filter Include="Source Files\core_cpp">
       <UniqueIdentifier>{c1bad251-82c0-4731-ae3c-e394655689bd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\ALGLIB">
+      <UniqueIdentifier>{7491abad-f561-491a-a34f-b487f2465459}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ALGLIB">
+      <UniqueIdentifier>{81315440-91e4-44ca-a920-46d4b1848b6c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="EDIT.cpp">
@@ -41,6 +47,54 @@
     </ClCompile>
     <ClCompile Include="photoAcoustic.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BSpline.cpp">
+      <Filter>Source Files\core_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="Curve.cpp">
+      <Filter>Source Files\core_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="Vector.cpp">
+      <Filter>Source Files\core_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\alglibinternal.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\alglibmisc.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\ap.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\dataanalysis.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\diffequations.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\fasttransforms.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\integration.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\interpolation.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\linalg.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\optimization.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\solvers.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\specialfunctions.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="ALGLIB_src\statistics.cpp">
+      <Filter>Source Files\ALGLIB</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -82,6 +136,57 @@
     </ClInclude>
     <ClInclude Include="messages.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BSpline.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="Curve.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="Vector.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\alglibinternal.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\alglibmisc.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\ap.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\dataanalysis.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\diffequations.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\fasttransforms.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\integration.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\interpolation.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\linalg.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\optimization.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\solvers.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\specialfunctions.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\statistics.h">
+      <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="ALGLIB_src\stdafx.h">
+      <Filter>Header Files\ALGLIB</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
