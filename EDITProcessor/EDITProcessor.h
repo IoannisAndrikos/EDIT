@@ -168,6 +168,31 @@ namespace EDITProcessor {
 			 ultr->applyEqualizeHist = applyEqualizeHist;
 		 }
 
+
+		 void setDicomTags() {
+			 try {
+				 vector<double> Tags = ultr->getTags();
+				 proc->xspace = Tags[0] * 10;
+				 proc->yspace = Tags[1] * 10;
+				 proc->distanceBetweenFrames = 0.203;
+				 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
+				 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
+
+
+				 photo->xspace = Tags[0] * 10;
+				 photo->yspace = Tags[1] * 10;
+				 photo->distanceBetweenFrames = 0.203;
+				 photo->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
+				 photo->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
+
+				 response->setSuccessOrFailure("success");
+			 }
+			 catch (exception e) {
+				 response->setSuccessOrFailure("Cannot load Dicom Tags");
+			 } 
+		 }
+
+
 		 //export images
 		 void exportUltrasoundImages(System::String ^dicomFile) {
 			string Dicom_file = msclr::interop::marshal_as<std::string>(dicomFile);
@@ -205,13 +230,8 @@ namespace EDITProcessor {
 
 		 //extract STL
 		 void  extractBladderSTL(List<List<EDITCore::CVPoint^>^>^ bladderPoints, bool fillHoles) {
-			 vector<double> Tags = ultr->getTags();
+			 setDicomTags();
 			 proc->fillHoles = fillHoles;
-			 proc->xspace = Tags[0] * 10;
-			 proc->yspace = Tags[1] * 10;
-			 proc->distanceBetweenFrames = 0.203;
-			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
-			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
 			
 			 ultr->finalizeAllBladderContours(listPointsToVectorPoints(bladderPoints));
 			 releaseMemory(bladderPoints);
@@ -225,13 +245,8 @@ namespace EDITProcessor {
 		 }
 
 		 void extractSkinSTL(List<List<EDITCore::CVPoint^>^>^ bladderPoints, bool fillHoles) {
-			 vector<double> Tags = ultr->getTags();
+			 setDicomTags();
 			 proc->fillHoles = fillHoles;
-			 proc->xspace = Tags[0] * 10;
-			 proc->yspace = Tags[1] * 10;
-			 proc->distanceBetweenFrames = 0.203;
-			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
-			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
 			 
 			 proc->fillHoles = fillHoles;
 			 ultr->extractSkinPoints(listPointsToVectorPoints(bladderPoints));
@@ -303,79 +318,67 @@ namespace EDITProcessor {
 
 
 		 void extractThickness(List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
+			 setDicomTags();
+			 if (response->isSuccessful()) { //ckeck dico Tags
+				 photo->setInitialFrame(ultr->getInitialFrame());
+				 photo->setLastFrame(ultr->getLastFrame());
+				 photo->setlumenPoints(listPointsToVectorPoints(bladderPoints));
+				 releaseMemory(bladderPoints);
+				 string errorMessage = photo->thicknessExtraction();
+				 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+				 if (response->isSuccessful()) {
+					 vector<vector<Point2f>> thicknessPoints = photo->getThicknessPoints();
 
-			 //--------------------Photo Acoustic Settings-------------------
-			 vector<double> Tags = photo->getTags();
-			 photo->xspace = Tags[0] * 10;
-			 photo->yspace = Tags[1] * 10;
-			 photo->distanceBetweenFrames = 0.203;
-			 photo->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
-			 photo->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2
-			 //--------------------------------------------------------------
-
-			 photo->setInitialFrame(ultr->getInitialFrame());
-			 photo->setLastFrame(ultr->getLastFrame());
-			 photo->setlumenPoints(listPointsToVectorPoints(bladderPoints));
-			 releaseMemory(bladderPoints);
-			 photo->thicknessExtraction();
-			 vector<vector<Point2f>> thicknessPoints = photo->getThicknessPoints();
-
-			 vector<double> meanThicknessVec = photo->getMeanThickness();
-			 List<double>^ meanThickness = gcnew List<double>();
-			 for each (double mT in meanThicknessVec)
-			 {
-				 meanThickness->Add(mT);
+					 vector<double> meanThicknessVec = photo->getMeanThickness();
+					 List<double>^ meanThickness = gcnew List<double>();
+					 for each (double mT in meanThicknessVec)
+					 {
+						 meanThickness->Add(mT);
+					 }
+					 releaseMemory(meanThicknessVec);
+					 response->setData(meanThickness); //mean thickness
+					 response->setData(vectorPointsTOListPoints(thicknessPoints));
+				 }
 			 }
-			 releaseMemory(meanThicknessVec);
-
-			 response->setSuccessOrFailure("");
-			 response->setData(meanThickness); //mean thickness
-			 response->setData(vectorPointsTOListPoints(thicknessPoints));
 		 }
 
 		 void extractThicknessForUniqueFrame(int frame, List<EDITCore::CVPoint^>^ bladderPoints) {
 			 photo->setContourForFix(listPointsToVectorPoints(bladderPoints));
 			 releaseMemory(bladderPoints);
-			 photo->thicknessExtraction(frame);
-			 vector<Point2f> thicknessPoints = photo->getContourForFix();
-
-
-			 vector<double> meanThicknessVec = photo->getMeanThickness();
-			 List<double>^ meanThickness = gcnew List<double>();
-			 for each (double mT in meanThicknessVec)
-			 {
-				 meanThickness->Add(mT);
+			 string errorMessage = photo->thicknessExtraction(frame);
+			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+			 if (response->isSuccessful()) {
+				 vector<Point2f> thicknessPoints = photo->getContourForFix();
+				 double contourMeanThickness = photo->getMeanThicknessOfContourForFix();
+				 response->addNumericData(contourMeanThickness);
+				 response->setData(vectorPointsTOListPoints(thicknessPoints));
 			 }
-			 releaseMemory(meanThicknessVec);
-
-			 response->setSuccessOrFailure("");
-			 response->setData(meanThickness);
-			 response->setData(vectorPointsTOListPoints(thicknessPoints));
 		 }
+
 
 		 //extract STL
 		 void extractThicknessSTL(List<List<EDITCore::CVPoint^>^>^ thicknessPoints, bool fillHoles) {
 			 vector<double> Tags = photo->getTags();
 			 proc->fillHoles = fillHoles;
-			 proc->xspace = Tags[0] * 10;
-			 proc->yspace = Tags[1] * 10;
-			 proc->distanceBetweenFrames = 0.203;
-			 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
-			 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
-			
-			 photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
-			 releaseMemory(thicknessPoints);
-
-			 string errorMessage = proc->triangulation(photo->getFinalThicknessPoints(), process_3D::STLType::THICKNESS);
-			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+			 setDicomTags();
 			 if (response->isSuccessful()) {
-				 string STLPath = proc->getThicknessGeometry();
-				 response->setData(msclr::interop::marshal_as<System::String^>(STLPath));
+				 photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
+				 releaseMemory(thicknessPoints);
+
+				 string errorMessage = proc->triangulation(photo->getFinalThicknessPoints(), process_3D::STLType::THICKNESS);
+				 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+				 if (response->isSuccessful()) {
+					 string STLPath = proc->getThicknessGeometry();
+					 response->setData(msclr::interop::marshal_as<System::String^>(STLPath));
+				 }
 			 }
 		 }
 
 
-		 void extractOXYandDeOXYPoints(List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
+		 void extractOXYandDeOXYPoints(List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints, System::String^ BladderFilePath, System::String^ thicknessFilePath) {
+			proc->saveGeometryPath(msclr::interop::marshal_as<std::string>(BladderFilePath), process_3D::STLType::BLADDER);
+			proc->saveGeometryPath(msclr::interop::marshal_as<std::string>(thicknessFilePath), process_3D::STLType::THICKNESS);
+		
 			photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::OXY);
 			string errorMessage1 = proc->findPixelsArePlacedIntoGeometries(photo->getSharderPoints(), photo->getInterpolatedPoints(), process_3D::STLType::OXY);
 			photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::DeOXY);
@@ -391,12 +394,24 @@ namespace EDITProcessor {
 		 }
 
 
-
 		void writeThicknessPoints(List<List<EDITCore::CVPoint^>^>^ thicknessPoints) {
 			photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
 			releaseMemory(thicknessPoints);
 			photo->writeThicknessPoints();
 		 }
+
+		//----------------------------------------------FILL VARIABLES WHEN LOAD DATA FROM UI---------------------------------
+		void fill2DVariablesWhenLoadDataFromUI(int startingFrame, int endingFrame){ //List<List<EDITCore::CVPoint^>^>^ bladderPoints
+			setDicomTags();
+			if (response->isSuccessful()) {
+				ultr->setInitialFrame(startingFrame);
+				ultr->setLastFrame(endingFrame);
+				photo->setInitialFrame(startingFrame);
+				photo->setLastFrame(endingFrame);
+
+				//photo->setlumenPoints(listPointsToVectorPoints(bladderPoints));
+			}
+		}
 
 	};
 }

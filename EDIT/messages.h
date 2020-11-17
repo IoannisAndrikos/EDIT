@@ -16,6 +16,8 @@ namespace warningMessages {
 
 	static const string cannotGetAllNecessaryDicomTags = "The selected Dicom does not contain all the necessary dicom tags for the process. Plese check if the following dicom Tags are available:\n 1) PhysicalDeltaX \n 2) PhysicalDeltaY \n 3) RegionLocationMinX0 \n 4) RegionLocationMaxX1 \n 5) RegionLocationMinY0 \n 6) RegionLocationMaxY1";
 
+	static const string cannotFindThickness = "Cannot find thickness. Please check all configurations and repeat the process";
+	
 	//----------------------------------------About 3D---------------------------------
 
 	static const string problemDuringTriangulation = "A problem has occurred during the triangulation process. Please check the segmentation for any potential sharp points.";

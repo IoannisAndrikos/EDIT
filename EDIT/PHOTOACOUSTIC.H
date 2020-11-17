@@ -48,7 +48,7 @@ public:
 
 	string exportOXYImages(string dicomPath);
 	string exportDeOXYImages(string dicomPath);
-	void thicknessExtraction(int frame = 0); //frame = 0 means that the process will be performed for all photoAcoustic sequenence
+	string thicknessExtraction(int frame = 0); //frame = 0 means that the process will be performed for all photoAcoustic sequenence
 	void finalizeAllThicknessContours(vector<vector<Point2f>> points);
 	void extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type);
 	void writeThicknessPoints();
@@ -121,31 +121,35 @@ public:
 
 
 	vector<double> getMeanThickness() {
-		return meanThickness;
+		return this->meanThickness;
+	}
+
+	double getMeanThicknessOfContourForFix() {
+		return this->meanThicknessOfContourForFix;
 	}
 
 	vector<vector<Point2f>> getFinalThicknessPoints() {
-		return finalThicknessPoints;
+		return this->finalThicknessPoints;
 	}
 
 	vector<vector<Point3f>> getOXYPoints() {
-		return OXYPoints;
+		return this->OXYPoints;
 	}
 
 
 	vector<vector<Point3f>> getDeOXYPoints() {
-		return DeOXYPoints;
+		return this->DeOXYPoints;
 	}
 
 	vector<vector<Point3f>> getNotSharderPoints() {
-		return notSharderPoints;
+		return this->notSharderPoints;
 	}
 
 	vector<vector<vector<Point3f>>> getSharderPoints() {
-		return sharderPoints;
+		return this->sharderPoints;
 	}
 	vector<vector<vector<Point3f>>> getInterpolatedPoints() {
-		return interpolatedPoints;
+		return this->interpolatedPoints;
 	}
 
 	//------------------------------------------THESE SHOULD BE GIVEN BY ULTRASOUND PART---------------------------
@@ -158,13 +162,22 @@ public:
 	}
 
 	void setlumenPoints(vector<vector<Point2f>> lumenPoints) {
-	//	vector<vector<Point2f>>().swap(lumenPoints);
+		vector<vector<Point2f>>().swap(this->lumenPoints);
 		this->lumenPoints = lumenPoints;
 	}
 
 	void setContourForFix(vector<Point2f> contourForFix) {
-	//	vector<Point2f>().swap(contourForFix);
+		vector<Point2f>().swap(this->contourForFix);
 		this->contourForFix = contourForFix;
+	}
+
+	
+	void setThicknessPoints(vector<vector<Point2f>> thicknessPoints) {
+		vector<vector<Point2f>>().swap(this->thicknessPoints);
+		vector<vector<Point2f>>().swap(this->finalThicknessPoints);
+
+		this->thicknessPoints = thicknessPoints;
+		this->finalThicknessPoints = thicknessPoints;
 	}
 
 	//-------------------------------------------------------------------------------------------------------------
@@ -200,7 +213,7 @@ private:
 	enum interpolationMethod {CUBIC, AKIMA, CATMULLROM, MONOTONE, LINEAR};
 	enum totalSequenceOrCorrecton { TOTAL, CORRECTION};
 	void creatDirectories();
-	void process(int frame, totalSequenceOrCorrecton type);
+	string process(int frame, totalSequenceOrCorrecton type);
 	vector<Point2f> smoothContour(vector<Point2f> contour, int num_spline = 0, bool closedContour = false);
 	vector<Point2f> smoothCurve(vector<vector<vector<double>>> centerline, int num_spline = 0);
 	Point2f findCenterOfContour(vector<Point2f> contour);
@@ -240,6 +253,7 @@ private:
 	vector<vector<Point2f>> thicknessPoints;
 	vector<vector<Point2f>> finalThicknessPoints;
 	vector<double> meanThickness;
+	double meanThicknessOfContourForFix;
 	vector<vector<Point2f>> lumenPoints;
 	vector<Point2f> contourForFix;
 	string loggertxt;

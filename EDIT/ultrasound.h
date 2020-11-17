@@ -114,6 +114,14 @@ public:
 		return lastFrame;
 	}
 
+	void setInitialFrame(int initialFrame) {
+		this->initialFrame = initialFrame;
+	}
+
+	void setLastFrame(int lastFrame) {
+		this->lastFrame = lastFrame;
+	}
+
 	vector<vector<Point2f>> getlumenPoints() {
 		return lumenPoints;
 	}

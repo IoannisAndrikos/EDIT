@@ -62,6 +62,7 @@ public:
 	string triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
 	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type); //string path
 	string findPixelsArePlacedIntoGeometries(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
+	void saveGeometryPath(string  filename, STLType type);
 
 	void setMainOutputDirectory(string studyDir) {
 		this->studyDir = studyDir;
@@ -83,6 +84,8 @@ public:
 		}
 	}
 
+
+	//-------------GETTERs-----------
 	string getThicknessGeometry() {
 		return this->thicknessGeometry;
 	}
@@ -102,6 +105,8 @@ public:
 	string getDeOXYGeometry() {
 		return this->DeOXYGeometry;
 	}
+
+	//------------SETTERs----------
 
 	//variables
 	double xspace;
@@ -128,7 +133,7 @@ private:
 	//functions
 	vector<vector<Point3f>> fix3D(vector<vector<Point2f>> point_cloud);
 	string getSTLName(STLType type);
-	void saveGeometryPath(string  filename, STLType type);
+	
 
 
 	void LoggerMessage(string message) {
