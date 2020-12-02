@@ -157,8 +157,6 @@ namespace EDITProcessor {
 		}
 
 		
-		
-
 		 void setSegmentationConfigurations(int repeats, int smoothing, double lamda1, double lamda2, int levelsetSize, bool applyEqualizeHist) {
 			 ultr->repeats = repeats;
 			 ultr->smoothing = smoothing;
@@ -168,20 +166,29 @@ namespace EDITProcessor {
 			 ultr->applyEqualizeHist = applyEqualizeHist;
 		 }
 
+		 void setStudySettings(double distanceBetweenFrames, double xspace, double yspace) {
+			 proc->distanceBetweenFrames = distanceBetweenFrames;
+			 photo->distanceBetweenFrames = distanceBetweenFrames;
+
+			 proc->xspace = xspace;
+			 proc->yspace = xspace;
+
+			 photo->xspace = yspace;
+			 photo->yspace = yspace;
+		 }
+
 
 		 void setDicomTags() {
 			 try {
 				 vector<double> Tags = ultr->getTags();
 				 proc->xspace = Tags[0] * 10;
 				 proc->yspace = Tags[1] * 10;
-				 proc->distanceBetweenFrames = 0.203;
 				 proc->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
 				 proc->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
 
 
 				 photo->xspace = Tags[0] * 10;
 				 photo->yspace = Tags[1] * 10;
-				 photo->distanceBetweenFrames = 0.203;
 				 photo->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
 				 photo->imageCenter.y = (Tags[5] - Tags[4]) / 2; //center_y = (Ymax - Ymin)/2 
 
@@ -199,6 +206,7 @@ namespace EDITProcessor {
 			string errorMessage = ultr->exportImages(Dicom_file); // 1
 			response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
 			if (response->isSuccessful()) {
+				setDicomTags();
 				string outputimagesDir = ultr->getOutputImagesDir();
 				vector<double> tags = ultr->getTags();
 				//Pixel Spacing
@@ -230,7 +238,7 @@ namespace EDITProcessor {
 
 		 //extract STL
 		 void  extractBladderSTL(List<List<EDITCore::CVPoint^>^>^ bladderPoints, bool fillHoles) {
-			 setDicomTags();
+			// setDicomTags();
 			 proc->fillHoles = fillHoles;
 			
 			 ultr->finalizeAllBladderContours(listPointsToVectorPoints(bladderPoints));
@@ -245,7 +253,7 @@ namespace EDITProcessor {
 		 }
 
 		 void extractSkinSTL(List<List<EDITCore::CVPoint^>^>^ bladderPoints, bool fillHoles) {
-			 setDicomTags();
+			// setDicomTags();
 			 proc->fillHoles = fillHoles;
 			 
 			 proc->fillHoles = fillHoles;
@@ -311,14 +319,15 @@ namespace EDITProcessor {
 			 }
 		 }
 
-		 void setPhotoAcousticSegmentationConfigurations(double minThickness, double maxThickness) {
+		 void setPhotoAcousticSegmentationConfigurations(double minThickness, double maxThickness, bool bigTumor) {
 			 photo->minThickness = minThickness;
 			 photo->maxThickness = maxThickness;
+			 (bigTumor) ? photo->tumor = photoAcoustic::tumorSize::BIG : photo->tumor = photoAcoustic::tumorSize::SMALL;
 		 }
 
 
 		 void extractThickness(List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
-			 setDicomTags();
+			 //setDicomTags();
 			 if (response->isSuccessful()) { //ckeck dico Tags
 				 photo->setInitialFrame(ultr->getInitialFrame());
 				 photo->setLastFrame(ultr->getLastFrame());
@@ -360,7 +369,7 @@ namespace EDITProcessor {
 		 void extractThicknessSTL(List<List<EDITCore::CVPoint^>^>^ thicknessPoints, bool fillHoles) {
 			 vector<double> Tags = photo->getTags();
 			 proc->fillHoles = fillHoles;
-			 setDicomTags();
+			 //setDicomTags();
 			 if (response->isSuccessful()) {
 				 photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
 				 releaseMemory(thicknessPoints);
@@ -376,6 +385,8 @@ namespace EDITProcessor {
 
 
 		 void extractOXYandDeOXYPoints(List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints, System::String^ BladderFilePath, System::String^ thicknessFilePath) {
+			
+			
 			proc->saveGeometryPath(msclr::interop::marshal_as<std::string>(BladderFilePath), process_3D::STLType::BLADDER);
 			proc->saveGeometryPath(msclr::interop::marshal_as<std::string>(thicknessFilePath), process_3D::STLType::THICKNESS);
 		
@@ -408,7 +419,6 @@ namespace EDITProcessor {
 				ultr->setLastFrame(endingFrame);
 				photo->setInitialFrame(startingFrame);
 				photo->setLastFrame(endingFrame);
-
 				//photo->setlumenPoints(listPointsToVectorPoints(bladderPoints));
 			}
 		}

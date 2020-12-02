@@ -111,7 +111,7 @@ public:
 	//variables
 	double xspace;
 	double yspace;
-	double distanceBetweenFrames;
+	double distanceBetweenFrames = 0.203;
 	ofstream logFile;
 	Point2f imageCenter;
 	bool fillHoles = true;

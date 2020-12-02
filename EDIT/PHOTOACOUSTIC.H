@@ -45,6 +45,7 @@ public:
 	~photoAcoustic(); //destructor
 
 	enum Point3DType { OXY, DeOXY };
+	enum tumorSize { BIG, SMALL };
 
 	string exportOXYImages(string dicomPath);
 	string exportDeOXYImages(string dicomPath);
@@ -197,6 +198,7 @@ public:
 	ofstream logFile;
 	double maxThickness = 0.7;
 	double minThickness = 0.3;
+	tumorSize tumor = tumorSize::SMALL;
 	double minDegree = 180.0;
 	double maxDegree = 360.0;
 	int pixelDistance = 40;

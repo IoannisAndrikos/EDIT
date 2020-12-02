@@ -150,29 +150,23 @@ string photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 		//threshold(red_PA, red_PA, 100, 255, THRESH_BINARY);
 		Canny(red_PA, edge_OXY, 90, 270, 3);
 
-		vector<Point2f> convexBladderRepeat1, bladder;// = this->lumenPoints[frame - this->initialFrame]; //--------------------------->??????
+		vector<Point2f> convexBladderRepeat, bladder;// = this->lumenPoints[frame - this->initialFrame]; //--------------------------->??????
 		if (type == totalSequenceOrCorrecton::TOTAL) {
-			//double convex filtering
-			convexHull(this->lumenPoints[frame - this->initialFrame], convexBladderRepeat1, true);
-			convexBladderRepeat1 = interpolateConvexPoints(convexBladderRepeat1, interpolationMethod::MONOTONE);
-			convexHull(convexBladderRepeat1, bladder, true);
-			vector<Point2f>().swap(convexBladderRepeat1);
-			bladder = interpolateConvexPoints(bladder, interpolationMethod::AKIMA);
-
-			bladder.push_back(bladder[0]);
-			bladder = smoothContour(bladder, 100);
+			convexHull(this->lumenPoints[frame - this->initialFrame], convexBladderRepeat, true);
 		}
 		else {
-			//double convex filtering
-			convexHull(this->contourForFix, convexBladderRepeat1, true);
-			convexBladderRepeat1 = interpolateConvexPoints(convexBladderRepeat1, interpolationMethod::MONOTONE);
-			convexHull(convexBladderRepeat1, bladder, true);
-			vector<Point2f>().swap(convexBladderRepeat1);
-			bladder = interpolateConvexPoints(bladder, interpolationMethod::AKIMA);
+			convexHull(this->contourForFix, convexBladderRepeat, true);
+		}
 
-			vector<Point2f>().swap(this->contourForFix);
-			bladder.push_back(bladder[0]);
-			bladder = smoothContour(bladder, 100);
+		if (this->tumor == tumorSize::SMALL) {
+			bladder = smoothContour(convexBladderRepeat, 100, true);
+		}
+		else if (this->tumor == tumorSize::BIG) {
+			convexBladderRepeat = interpolateConvexPoints(convexBladderRepeat, interpolationMethod::MONOTONE);
+			convexHull(convexBladderRepeat, bladder, true);
+			vector<Point2f>().swap(convexBladderRepeat);
+			bladder = interpolateConvexPoints(bladder, interpolationMethod::AKIMA);
+			bladder = smoothContour(bladder, 100, true);
 		}
 
 		//Point2f center = findCenterOfContour(bladder);
@@ -189,7 +183,7 @@ string photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 		vector<Point2f> polarXY_outer, outer_mean;
 
 		vector<double> thickness(bladder.size());
-		fill(thickness.begin(), thickness.end(), 1.0); //initialize all thickness values with 1.0
+		fill(thickness.begin(), thickness.end(), 1.0); //initialize all thickness values to 1.0
 
 		for (int j = 0; j < bladder.size(); j++) {
 			double degree = 180 * angle.at<float>(j) / CV_PI;
