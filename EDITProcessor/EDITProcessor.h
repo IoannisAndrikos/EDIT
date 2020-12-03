@@ -370,16 +370,13 @@ namespace EDITProcessor {
 			 vector<double> Tags = photo->getTags();
 			 proc->fillHoles = fillHoles;
 			 //setDicomTags();
+			 photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
+			 releaseMemory(thicknessPoints);
+			 string errorMessage = proc->triangulation(photo->getFinalThicknessPoints(), process_3D::STLType::THICKNESS);
+			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
 			 if (response->isSuccessful()) {
-				 photo->finalizeAllThicknessContours(listPointsToVectorPoints(thicknessPoints));
-				 releaseMemory(thicknessPoints);
-
-				 string errorMessage = proc->triangulation(photo->getFinalThicknessPoints(), process_3D::STLType::THICKNESS);
-				 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
-				 if (response->isSuccessful()) {
-					 string STLPath = proc->getThicknessGeometry();
-					 response->setData(msclr::interop::marshal_as<System::String^>(STLPath));
-				 }
+				 string STLPath = proc->getThicknessGeometry();
+				 response->setData(msclr::interop::marshal_as<System::String^>(STLPath));
 			 }
 		 }
 
