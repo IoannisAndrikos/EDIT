@@ -126,7 +126,6 @@ string ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint)
 	this->lastFrame = lastFrame;
 	CImg<unsigned char> embedding;
 
-	vector<Mat> imageOfinterest;
 	for (int i = initialFrame; i <= lastFrame; i++) { //initialFrame - 1
 		LoggerMessage(string("Working on Frame: " + to_string(i)));
 		Mat lumen;
@@ -134,12 +133,11 @@ string ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint)
 			equalizeHist(this->images[i], lumen);
 		}
 		else {
-			lumen = this->images[i];
+			lumen = this->images[i].clone();
 		}
 
 		CImg<double>  imgC = *cvImgToCImg(lumen);
 		
-
 		//Morphological ACWE
 		if (i == this->initialFrame || i >=this->lastFrame-5) { // maybe 5 has to be configurable from gui
 			//in the first as well as in the final 5 frames we apply circle levelset image and 200 repeats
@@ -193,7 +191,6 @@ string ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint)
 
 
 			if (poitsWereFound == ResultOfProcess::SUCCESS) {
-				//ResultOfProcess poitsWereSorted = sortUsingPolarCoordinates(lumenPoints, i, lumenCenter, images[i], 0);
 				ResultOfProcess poitsWereSorted = sortClockwise(lumenPoints, lumenCenter, i);
 				if (poitsWereSorted == ResultOfProcess::FAILURE) {
 					return warningMessages::firtFrameSegmentationFailed + to_string(i);
@@ -215,6 +212,285 @@ string ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint)
 	}
 	return this->success;
 }
+
+//-------------------------------------------------------------------------------------------------------
+
+
+string ultrasound::extactTumor2D(Point clickPoint, vector<vector<Point2f>> thickness) {
+
+	vector<Mat>().swap(this->tumorImages);
+
+	CImg<unsigned char> embedding;
+
+	for (int i = 0; i < this->lumenPoints.size(); i++) { //initialFrame - 1
+
+		String imagePath = String("C:/Users/Legion Y540/desktop/remove_tumor/" + to_string(i + this->initialFrame)) + ".bmp";
+
+		Mat lumen = imread(imagePath, 0);
+
+		CImg<double>  imgC = *cvImgToCImg(lumen);
+
+		//Morphological ACWE
+		if (i == 0) { // maybe 5 has to be configurable from gui
+			//in the first as well as in the final 5 frames we apply circle levelset image and 200 repeats
+			CImg<unsigned char> embedding = circle_levelset(imgC.height(), imgC.width(), { clickPoint.y , clickPoint.x }, this->levelsetSize);
+			morphsnakes::MorphACWE<double, 2> macwe(cimg2ndimage(embedding), cimg2ndimage(imgC), 5, 5, 5);
+			for (int i = 0; i < 200; ++i) {
+				macwe.step();
+			}
+			//Back to Mat
+			lumen = CImgtoCvImg((embedding * 255));
+			this->levelsetImage = embedding;
+		}
+		else {
+			//while in the rest images we use the segmentation of the previous image and 50 repeats
+			morphsnakes::MorphACWE<double, 2> macwe(cimg2ndimage(this->levelsetImage), cimg2ndimage(imgC), this->smoothing, this->lamda1, this->lamda2);
+			for (int i = 0; i < this->repeats; ++i) {
+				macwe.step();
+			}
+			//Back to Mat
+			lumen = CImgtoCvImg((this->levelsetImage * 255));
+		}
+
+		vector<Point>  rounded_bladderContoursPoint, rounded_thicknessContoursPoint;
+		for (int j = 0; j < this->lumenPoints[i].size(); j++) {
+			rounded_bladderContoursPoint.push_back(Point(round(lumenPoints[i][j].x), round(lumenPoints[i][j].y)));
+		}
+		fillPoly(lumen, rounded_bladderContoursPoint, Scalar(0, 0, 0));
+		Mat element = getStructuringElement(MORPH_ELLIPSE, Size(10, 10), Point(-1, -1)); // kernel performing drode 
+		erode(lumen, lumen, element);
+
+		for (int j = 0; j < thickness[i].size(); j++) {
+			rounded_thicknessContoursPoint.push_back(Point(round(thickness[i][j].x), round(thickness[i][j].y)));
+		}
+
+		Mat black = Mat::zeros(lumen.size(), lumen.type());
+		fillPoly(black, rounded_thicknessContoursPoint, Scalar(255, 255, 255));
+		bitwise_and(black, lumen, lumen);
+
+		/*namedWindow("window", 1);
+		imshow("window", lumen);
+		waitKey(0);*/
+
+		this->tumorImages.push_back(lumen);
+
+		lumen.release();
+	}
+	return this->success;
+}
+
+vector<vector<Point2f>> ultrasound::getTumorBorders() {
+	vector<vector<Point2f>> tumorBorders;
+
+	vector<vector<Point>> contours;
+	vector<Vec4i> hierarchy;
+	int index, minDistIndex;
+	vector<Point2f> tumorContour;
+	double dist;
+	Mat black, whitePixels;
+	Scalar color(255, 0, 0);
+	for (int i = 0; i < this->tumorImages.size(); i++) {
+		vector<Point2f>().swap(tumorContour);
+
+		black = Mat::zeros(this->tumorImages[0].size(), this->tumorImages[0].type());
+
+		findContours(this->tumorImages[i], contours, hierarchy, 3, 2, Point(0, 0));
+		if (!contours.empty()) {
+			index = findLongestVector(contours);
+
+			//Canny(black, black, 0, 0, 3);//with or without, explained later.
+			drawContours(black, contours, index, color);
+			/*namedWindow("window", 1);
+			imshow("window", black);
+			waitKey(0); */
+		
+			////TO DO
+			//// output, locations of non-zero pixels
+
+			findNonZero(black, whitePixels);
+
+			for (int i = 0; i < whitePixels.total(); i++) {
+				Point lumen_p = Point(whitePixels.at<Point>(i).x, whitePixels.at<Point>(i).y);
+				tumorContour.push_back(Point2f(whitePixels.at<Point>(i).x, whitePixels.at<Point>(i).y));
+			}
+
+			//transform(contours[index].begin(), contours[index].end(), back_inserter(tumorContour), [](const Point& p) { return (Point2f)p; });
+			tumorBorders.push_back(smoothContour(sortBasedEuclideanDistance(tumorContour),0,true));
+		}
+		else {
+			tumorBorders.push_back(vector<Point2f>()); //push back empty
+		}
+	}
+	return tumorBorders;
+}
+
+
+
+string ultrasound::fixArtifact(Point clickPoint, vector<vector<Point2f>> points) {
+
+	vector<vector<Point2f>>().swap(this->lumenPoints);
+	vector<vector<Point2f>>().swap(this->skinPoints);
+	vector<double>().swap(this->lumenArea);
+
+	this->initialFrame = initialFrame;
+	this->lastFrame = lastFrame;
+	CImg<unsigned char> embedding;
+
+	for (int i = initialFrame; i <= lastFrame; i++) { //initialFrame - 1
+		LoggerMessage(string("Working on Frame: " + to_string(i)));
+		Mat lumen;
+		if (applyEqualizeHist) {
+			equalizeHist(this->images[i], lumen);
+		}
+		else {
+			lumen = this->images[i].clone();
+		}
+
+		//TO DO 
+		//-------------------------------------------
+		vector<Point2f> bladder, convexBladder;
+		bladder = points[i - this->initialFrame];
+		Point2f center = getCenterOfGravity(bladder);
+		convexHull(bladder, convexBladder, true, false);
+		//convexBladder = interpolateConvexPoints(convexBladder, interpolationMethod::AKIMA);
+		convexBladder = smoothContour(convexBladder, 200, true);
+		Mat black = Mat::zeros(lumen.size(), lumen.type());
+		vector<Point>  rounded_bladder, rounded_convexBladder;
+		for (int j = 0; j < bladder.size(); j++) {
+			rounded_bladder.push_back(Point(round(bladder[j].x), round(bladder[j].y)));
+			rounded_convexBladder.push_back(Point(round(convexBladder[j].x), round(convexBladder[j].y)));
+		}
+		fillPoly(black, rounded_convexBladder, Scalar(255, 255, 255));
+		fillPoly(black, rounded_bladder, Scalar(0, 0, 0));
+
+
+		vector<vector<Point>> artifact_Contours;
+		vector<Vec4i> artifact_hierarchy;
+		findContours(black, artifact_Contours, artifact_hierarchy, 3, 2, Point(0, 0));
+
+
+		vector<Point2f> centers;
+
+		for (int i = 0; i < artifact_Contours.size(); i++) {
+			centers.push_back(getCenterOfGravity(artifact_Contours[i]));
+		}
+
+		transform(centers.begin(), centers.end(), centers.begin(), std::bind2nd(std::minus<Point2f>(), center));
+		Mat magnitude, angle;
+		Mat xpts(centers.size(), 1, CV_32F, &centers.at(0).x, 2 * sizeof(float));
+		Mat ypts(centers.size(), 1, CV_32F, &centers.at(0).y, 2 * sizeof(float));
+
+		double degrees;
+
+		fillPoly(lumen, rounded_bladder, Scalar(0, 0, 0));
+
+		cartToPolar(xpts, ypts, magnitude, angle);
+		vector<Point2f> polarContourCenters;
+		for (int i = 0; i < centers.size(); i++) {
+			polarContourCenters.push_back(Point2f(magnitude.at<float>(i), angle.at<float>(i)));
+			degrees = 180 * polarContourCenters[i].y / CV_PI;
+
+			if (degrees > 220 && degrees < 320) {
+				fillPoly(lumen, artifact_Contours[i], Scalar(0, 0, 0));
+			}
+		}
+
+		vector<Point2f>().swap(bladder);
+		vector<Point2f>().swap(convexBladder);
+		vector<vector<Point>>().swap(artifact_Contours);
+		vector<Vec4i>().swap(artifact_hierarchy);
+		vector<Point>().swap(rounded_bladder);
+		vector<Point>().swap(rounded_convexBladder);
+		black.release();
+		magnitude.release();
+		angle.release();
+		xpts.release();
+		ypts.release();
+		//-------------------------------------------
+		
+
+		CImg<double>  imgC = *cvImgToCImg(lumen);
+
+
+		//Morphological ACWE
+		if (i == this->initialFrame || i >= this->lastFrame - 5) { // maybe 5 has to be configurable from gui
+			//in the first as well as in the final 5 frames we apply circle levelset image and 200 repeats
+			CImg<unsigned char> embedding = circle_levelset(imgC.height(), imgC.width(), { clickPoint.y , clickPoint.x }, this->levelsetSize);
+			morphsnakes::MorphACWE<double, 2> macwe(cimg2ndimage(embedding), cimg2ndimage(imgC), this->smoothing, this->lamda1, this->lamda2);
+			for (int i = 0; i < 200; ++i) {
+				macwe.step();
+			}
+			//Back to Mat
+			lumen = CImgtoCvImg((embedding * 255));
+			this->levelsetImage = embedding;
+		}
+		else {
+			//while in the rest images we use the segmentation of the previous image and 50 repeats
+			morphsnakes::MorphACWE<double, 2> macwe(cimg2ndimage(this->levelsetImage), cimg2ndimage(imgC), this->smoothing, this->lamda1, this->lamda2);
+			for (int i = 0; i < this->repeats; ++i) {
+				macwe.step();
+			}
+			//Back to Mat
+			lumen = CImgtoCvImg((this->levelsetImage * 255));
+		}
+
+		//Canny(lumen, lumen, 0, 0, 3);
+	   //threshold(lumen, lumen, 100, 255, THRESH_BINARY);
+
+		//---------------------------------------------Keep the longest contour--------------------------------------
+		threshold(lumen, lumen, 100, 255, THRESH_BINARY);
+		vector<vector<Point>> contours;
+		vector<Vec4i> hierarchy;
+		Canny(lumen, lumen, 0, 0, 3);//with or without, explained later.
+		findContours(lumen, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+
+		Mat drawing = Mat::zeros(lumen.size(), lumen.type());
+
+		Scalar color(255, 0, 0);
+
+		//Make sure that the longest contour is the 0
+		drawContours(drawing, contours, findLongestVector(contours), color);
+
+		lumen = drawing;
+
+		//find white pixels and calculte their center and store points into vector!
+		vector<Point2f>* lumenPoints = new vector<Point2f>();
+		Point2f* lumenCenter = new Point2f();
+		Point* highestWhitePixel = new Point();
+
+		try {
+			ResultOfProcess poitsWereFound = centerAndPointsOfContour(lumen, lumenPoints, lumenCenter, highestWhitePixel);
+			//update the click point! This point is used for the segmentation of the final (almost 5) frames
+			clickPoint = { (int)lumenCenter->x, (int)lumenCenter->y };
+
+
+			if (poitsWereFound == ResultOfProcess::SUCCESS) {
+				ResultOfProcess poitsWereSorted = sortClockwise(lumenPoints, lumenCenter, i);
+				if (poitsWereSorted == ResultOfProcess::FAILURE) {
+					return warningMessages::firtFrameSegmentationFailed + to_string(i);
+				}
+			}
+			else if (poitsWereFound == ResultOfProcess::FAILURE && i == this->initialFrame) {
+				return warningMessages::firtFrameSegmentationFailed;
+			}
+		}
+		catch (exception e) {
+			return warningMessages::frameSegmentationFailed + to_string(i);
+		}
+
+		vector<Point2f>().swap(*lumenPoints);
+		vector<vector<Point>>().swap(contours);
+		vector<Vec4i>().swap(hierarchy);
+		drawing.release();
+		lumen.release();
+	}
+	return this->success;
+}
+
+
+
+//---------------------------------------------------------------------------------------
+
 
 
 void ultrasound::finalizeAllBladderContours(vector<vector<Point2f>> points) {
@@ -570,6 +846,20 @@ Point2f ultrasound::getCenterOfGravity(vector<Point2f> points) {
 }
 
 
+Point2f ultrasound::getCenterOfGravity(vector<Point> points) {
+
+	Mat matContour = Mat(points);
+	vector<Point> pp;
+	convexHull(points, pp, false);
+	cv::Moments mm = cv::moments(pp, false);
+
+	vector<Point>().swap(pp);
+	vector<Point>().swap(points);
+	matContour.release();
+	return Point2f(mm.m10 / mm.m00, mm.m01 / mm.m00);
+}
+
+
 Point2f ultrasound::getCenterOfMass(vector<Point2f> points) {
 
 	Point2f center = accumulate(points.begin(), points.end(), Point2f(0.0, 0.0));
@@ -661,36 +951,20 @@ CImg<unsigned char> ultrasound::circle_levelset(int height, int width, const arr
 
 vector<Point2f> ultrasound::sortBasedEuclideanDistance(vector<Point2f> points) {
 	vector<Point2f> sorted;
-	Point2f center = getCenterOfMass(points);
 
-	int count = 0;
-	double dist = sqrt(pow(points[count].x - center.x, 2) + pow(points[count].y - center.y, 2));
-	//keep as first pixel this has distance from center greater than 20. Check only the first 3 points for that. 
-	//Thus we avoid to get a first points as a point close the to the center o points mass due to catheter artifact
-	while (dist < 50 && count<10 ) {
-		count++;
-		dist = sqrt(pow(points[count].x - center.x, 2) + pow(points[count].y - center.y, 2));
-	}
-
-	sorted.push_back(points[count]);
-	points.erase(points.begin() + count);
-
-	int range = floor(points.size() / 3);
-
+	//keep the first point
+	sorted.push_back(points[0]);
+	points.erase(points.begin());
+	
+	Point2f po;
 	while (!points.empty()) {
-		Point2f po = sorted.back();
-		 (points.size() > range) ? 
-			 sort(points.begin(), points.begin() + range, EuclideanDistance(po)) : 
-			 sort(points.begin(), points.begin() + range--, EuclideanDistance(po));
-		 dist = sqrt(pow(points[0].x - po.x, 2) + pow(points[0].y - po.y, 2));
-		 if (dist < 50)
-			 sorted.push_back(points[0]);
+		po = sorted.back();
+		sort(points.begin(), points.end(), EuclideanDistance(po));
+		if (sqrt(pow(points[0].x - sorted.back().x, 2) + pow(points[0].y - sorted.back().y, 2)) < 20) {
+			sorted.push_back(points[0]);
+		}
 		points.erase(points.begin());
 	}
-
-	//sorted.push_back(sorted[0]);
-
-	LoggerMessage("Bladder points were sorted clickwise successfully!");
 	
 	return sorted;
 }
@@ -756,6 +1030,141 @@ vector<Point2f> ultrasound::smoothContour(vector<Point2f> contour, int num_splin
 
 	return contour;
 
+}
+
+
+vector<Point2f> ultrasound::interpolateConvexPoints(vector<Point2f> p, interpolationMethod method) {
+
+	vector<double> diff;
+	for (int i = 0; i < p.size() - 2; i++) {
+		diff.push_back(abs((p[i].y - p[i + 1].y) / (p[i].x - p[i + 1].x) - (p[i + 1].y - p[i + 2].y) / (p[i + 1].x - p[i + 2].x)));
+	}
+	auto min = min_element(diff.begin(), diff.end());
+	int minIndex = distance(diff.begin(), min);
+	if (minIndex > 0) {
+		rotate(p.begin(), p.begin() + minIndex + 1, p.end());
+	}
+
+	vector<double>().swap(diff);
+
+
+	Point2f center = getCenterOfGravity(p);
+
+	transform(p.begin(), p.end(), p.begin(), std::bind2nd(std::minus<Point2f>(), center));
+
+	Mat xpts(p.size(), 1, CV_32F, &p.at(0).x, 2 * sizeof(float));
+	Mat ypts(p.size(), 1, CV_32F, &p.at(0).y, 2 * sizeof(float));
+	Mat magnitude, angle;
+	cartToPolar(xpts, ypts, magnitude, angle);
+	vector<Point2f> polarXY, interpolated;
+	for (int i = 0; i < p.size(); i++) {
+		polarXY.push_back(Point2f(magnitude.at<float>(i), angle.at<float>(i)));
+	}
+
+	sort(polarXY.begin(), polarXY.end(), sortBasedYCoordinate);
+
+	polarXY.push_back(Point2f(polarXY[0].x, polarXY[0].y + 2 * CV_PI));
+	double minAngle = polarXY[0].y;
+	double maxAngle = polarXY.back().y;
+
+
+	//------------------------LIBRARY 1--------------------
+	//Curve* curve = new BSpline();
+	////Curve* curve = new Bezier();
+	////Curve* curve = new CatmullRom();
+	//curve->set_steps(100); // generate 100 interpolate points between the last 4 way points
+
+	//for (int i = 0; i < polarXY.size(); i++) {
+	//	curve->add_way_point(Vector(polarXY[i].x, polarXY[i].y, 0));
+	//}
+	////curve->add_way_point(Vector(polarXY[0].x, polarXY[0].y, 0));
+
+	//for (int i = 0; i < curve->node_count(); ++i) {
+	//	interpolated.push_back(Point2f(curve->node(i).x, curve->node(i).y));
+	//}
+	//delete curve;
+
+
+	//------------------------LIBRARY 2--------------------
+	/*vector<double> X, Y;
+	for (int i = 0; i < polarXY.size(); i++) {
+		X.push_back(polarXY[i].y);
+		Y.push_back(polarXY[i].x);
+	}
+
+	tk::spline s;
+	s.set_points(X, Y);
+
+	for (double i = 0; i <= 2 * CV_PI; i = i + 0.02) {
+		interpolated.push_back(Point2f(s(i), i));
+	}*/
+
+	//------------------------LIBRARY 3--------------------
+	string xx = "[" + to_string(polarXY[0].x);
+	string yy = "[" + to_string(polarXY[0].y);
+
+	for (int i = 1; i < polarXY.size(); i++) {
+		xx += "," + to_string(polarXY[i].x);
+		yy += "," + to_string(polarXY[i].y);
+	}
+	xx += "]";
+	yy += "]";
+
+	alglib::real_1d_array X = xx.c_str();
+	alglib::real_1d_array Y = yy.c_str();
+	alglib::ae_int_t n = 100;
+	alglib::spline1dinterpolant s;
+
+	switch (method) {
+	case interpolationMethod::LINEAR:
+		alglib::spline1dbuildlinear(Y, X, s);
+		break;
+	case interpolationMethod::AKIMA:
+		alglib::spline1dbuildakima(Y, X, s);
+		break;
+	case interpolationMethod::CATMULLROM:
+		alglib::spline1dbuildcatmullrom(Y, X, s);
+		break;
+	case interpolationMethod::CUBIC:
+		alglib::spline1dbuildcubic(Y, X, s);
+		break;
+	case interpolationMethod::MONOTONE:
+		alglib::spline1dbuildmonotone(Y, X, s);
+		break;
+	}
+
+	for (double i = minAngle; i <= maxAngle; i = i + 0.08) {
+		interpolated.push_back(Point2f(spline1dcalc(s, i), i));
+	}
+	//-----------------------------------------------------
+
+
+	Mat mag(interpolated.size(), 1, CV_32F, &interpolated[0].x, 2 * sizeof(float));
+	Mat ang(interpolated.size(), 1, CV_32F, &interpolated[0].y, 2 * sizeof(float));
+
+	Mat xnew, ynew;
+	polarToCart(mag, ang, xnew, ynew);
+
+	vector<Point2f> pp;
+
+	for (int i = 0; i < interpolated.size(); i++) {
+		pp.push_back(Point2f(xnew.at<float>(i), ynew.at<float>(i)));
+	}
+
+	transform(pp.begin(), pp.end(), pp.begin(), std::bind2nd(std::plus<Point2f>(), center));
+
+
+	//vector<double>().swap(X); //if use libray 2
+	//vector<double>().swap(Y);
+	vector<Point2f>().swap(polarXY);
+	vector<Point2f>().swap(interpolated);
+	xpts.release();
+	ypts.release();
+	magnitude.release();
+	angle.release();
+	mag.release();
+	ang.release();
+	return pp;
 }
 
 

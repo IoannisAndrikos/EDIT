@@ -18,7 +18,7 @@
 #include "CImg.h"
 #include "spline.h"
 
-
+#include "ALGLIB_src/interpolation.h"
 
 #include <opencv2/core/core.hpp>
 #include "opencv2/imgproc/imgproc.hpp"
@@ -51,6 +51,13 @@ public:
 	string exportImages(string dicomPath);
 
 	string processing(int initialFrame, int lastFrame, cv::Point clickPoint); //cropping and filtering //vector<vector<Point2f>>
+
+	string extactTumor2D(Point clickPoint, vector<vector<Point2f>> thickness);
+	vector<vector<Point2f>> getTumorBorders();
+
+	string fixArtifact(Point clickPoint, vector<vector<Point2f>> points);
+	
+
 	void finalizeAllBladderContours(vector<vector<Point2f>> points);
 	void extractSkinPoints(vector<vector<Point2f>> bladderPoints);
 	void writePointsAndImages();
@@ -126,6 +133,10 @@ public:
 		return lumenPoints;
 	}
 
+	vector<Mat> getTumorImages() {
+		return this->tumorImages;
+	}
+
 	vector<vector<Point3f>> getlumen3DPoints() {
 		return lumen3DPoints;
 	}
@@ -159,11 +170,13 @@ public:
 private:
 	//functions
 	enum ResultOfProcess { SUCCESS, FAILURE };
+	enum interpolationMethod { CUBIC, AKIMA, CATMULLROM, MONOTONE, LINEAR };
 	CImg<unsigned char> *cvImgToCImg(Mat &cvImg);
 	Mat CImgtoCvImg(CImg<unsigned char> img);
 	void creatDirectories();
 	vector<Point2f> smoothContour(vector<Point2f> contour, int num_spline, bool closedContour = false);
 	vector<Point2f> smoothCurve(vector<vector<vector<double>>> centerline, int num_spline = 0);
+	vector<Point2f> interpolateConvexPoints(vector<Point2f> p, interpolationMethod method = interpolationMethod::AKIMA);
 	CImg<unsigned char> circle_levelset(int height, int width, const array<int, 2>& center, double radius, double scalerow = 1.0);
 	vector<Point2f> sortBasedEuclideanDistance(vector<Point2f> points);
 	ResultOfProcess centerAndPointsOfContour(Mat processed, vector<Point2f> *points, Point2f *center, cv::Point *highestWhitePixel = &cv::Point(0,0));
@@ -171,10 +184,10 @@ private:
 	ResultOfProcess sortClockwise(vector<Point2f>* p, Point2f* center, int iter);
 	int findLongestVector(vector<vector<cv::Point>> vec);
 	Point2f getCenterOfGravity(vector<Point2f> points);
+	Point2f getCenterOfGravity(vector<Point> points);
 	Point2f getCenterOfMass(vector<Point2f> points);
 	bool  IsClockwise(vector<Point2f> points);
 
-	
 
 	void LoggerMessage(string message) {
 		if (this->logFile.is_open()) this->logFile << " --> " << message << endl;
@@ -195,6 +208,10 @@ private:
 	int initialFrame;
 	int lastFrame;
 	vector<vector<Point2f>> lumenPoints;
+	
+	vector<Mat> tumorImages;
+
+
 	vector<vector<Point3f>> lumen3DPoints;
 	vector<vector<Point2f>> skinPoints;
 	vector<double> lumenArea;

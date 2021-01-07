@@ -449,6 +449,91 @@ void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderCont
 	}
 }
 
+
+void photoAcoustic::extractTumorPoints(vector<Mat> tumorImages) {
+
+	vector<vector<Point3f>>().swap(notSharderPoints_Tumor);
+	vector<vector<vector<Point3f>>>().swap(sharderPoints_Tumor);
+	vector<vector<vector<Point3f>>>().swap(interpolatedPoints_Tumor);
+
+	auto comp = [](const Point3f& lhs, const Point3f& rhs) {return ((lhs.x == rhs.x) && (lhs.y == rhs.y)); };
+
+	for (int i = 0; i < tumorImages.size() - 1; i++) {
+
+		Mat image1 = tumorImages[i];
+		Mat image2 = tumorImages[i+1];
+		
+		Mat Pixels;
+		vector<Point3f> Frame1Points3D;
+		if (i == 0) {
+			findNonZero(image1, Pixels);
+			vector<Point3f> Frame1Points3D;
+			for (int k = 0; k < Pixels.total(); k++) {
+				Frame1Points3D.push_back(Point3f((Pixels.at<Point>(k).x - this->imageCenter.x) * this->xspace, (Pixels.at<Point>(k).y - this->imageCenter.y) * this->yspace, this->distanceBetweenFrames * i));
+			}
+		}
+		else {
+			Frame1Points3D = this->alreadProcessedFramePoints3D;
+		}
+		
+		findNonZero(image2, Pixels);
+		vector<Point3f> Frame2Points3D;
+		for (int k = 0; k < Pixels.total(); k++) {
+			Frame2Points3D.push_back(Point3f((Pixels.at<Point>(k).x - this->imageCenter.x) * this->xspace, (Pixels.at<Point>(k).y - this->imageCenter.y) * this->yspace, this->distanceBetweenFrames * i));
+		}
+		this->alreadProcessedFramePoints3D = Frame2Points3D;
+		vector<Point3f> sharedPoints;
+
+		set_union(Frame1Points3D.begin(), Frame1Points3D.end(), Frame2Points3D.begin(), Frame2Points3D.end(), std::back_inserter(sharedPoints), comp);
+
+		//------------------------------------------------------------------------------------------
+		vector<vector<Point3f>> frameSharedPoints;
+		vector<vector<Point3f>> frameInterpolationPointsPoints;
+		double lower, upper;
+		for (int k = 0; k < sharedPoints.size(); k++) {
+			vector<Point3f> coupleOfSharedPoints;
+			coupleOfSharedPoints.push_back(Point3f(sharedPoints[k].x, sharedPoints[k].y, this->distanceBetweenFrames * i));
+			coupleOfSharedPoints.push_back(Point3f(sharedPoints[k].x, sharedPoints[k].y, this->distanceBetweenFrames * (i + 1)));
+			frameSharedPoints.push_back(coupleOfSharedPoints);
+			vector<Point3f>().swap(coupleOfSharedPoints);
+
+			vector<Point3f> interpolationPoints;
+
+			lower = (this->distanceBetweenFrames * i) + 0.05;
+			upper = (this->distanceBetweenFrames * (i + 1));
+
+			for (double s = lower; s < upper; s = s + 0.05) {
+				interpolationPoints.push_back(Point3f(sharedPoints[k].x, sharedPoints[k].y, s));
+			}
+			//-----------------------
+			frameInterpolationPointsPoints.push_back(interpolationPoints);
+			vector<Point3f>().swap(interpolationPoints);
+		}
+
+		if (sharedPoints.size() == 0) {
+			frameSharedPoints.push_back(vector<Point3f>());
+			frameInterpolationPointsPoints.push_back(vector<Point3f>());
+		}
+
+		this->notSharderPoints_Tumor.push_back(Frame1Points3D);
+		this->sharderPoints_Tumor.push_back(frameSharedPoints);
+		this->interpolatedPoints_Tumor.push_back(frameInterpolationPointsPoints);
+
+		image1.release();
+		image2.release();
+		vector<Point3f>().swap(sharedPoints);
+		vector<Point3f>().swap(Frame1Points3D);
+		vector<Point3f>().swap(Frame2Points3D);
+		vector<vector<Point3f>>().swap(frameSharedPoints);
+		vector<vector<Point3f>>().swap(frameInterpolationPointsPoints);
+	}
+}
+
+
+
+
+
+
 vector<Point3f> photoAcoustic::findPixelsBetweenThicknessAndBladder(Mat image, vector<Point2f> bladderContours, vector<Point2f> thicknessContours, int iter) {
 	
 	Mat black, result;

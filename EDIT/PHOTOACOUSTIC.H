@@ -54,6 +54,9 @@ public:
 	void extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type);
 	void writeThicknessPoints();
 
+	void extractTumorPoints(vector<Mat> tumorImages);
+
+
 	void setMainOutputDirectory(string mainOutputDirectory) {
 		this->mainOutputDirectory = mainOutputDirectory;
 		creatDirectories();
@@ -153,6 +156,19 @@ public:
 		return this->interpolatedPoints;
 	}
 
+
+	vector<vector<Point3f>> getNotSharderPoints_Tumor() {
+		return this->notSharderPoints_Tumor;
+	}
+
+	vector<vector<vector<Point3f>>> getSharderPoints_Tumor() {
+		return this->sharderPoints_Tumor;
+	}
+	vector<vector<vector<Point3f>>> getInterpolatedPoints_Tumor() {
+		return this->interpolatedPoints_Tumor;
+	}
+
+
 	//------------------------------------------THESE SHOULD BE GIVEN BY ULTRASOUND PART---------------------------
 	void setInitialFrame(int initialFrame){
 		this->initialFrame = initialFrame;
@@ -249,6 +265,14 @@ private:
 	vector<vector<Point3f>> notSharderPoints;
 	vector<vector<vector<Point3f>>> sharderPoints;
 	vector<vector<vector<Point3f>>> interpolatedPoints;
+
+
+	vector<Point3f> alreadProcessedFramePoints3D_Tumor;
+	vector<vector<Point3f>> notSharderPoints_Tumor;
+	vector<vector<vector<Point3f>>> sharderPoints_Tumor;
+	vector<vector<vector<Point3f>>> interpolatedPoints_Tumor;
+
+
 	vector<double> tags;
 	int initialFrame;
 	int lastFrame;

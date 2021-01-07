@@ -57,11 +57,15 @@ public:
 	process_3D(); //constructor
 	~process_3D(); //destructor
 
-	enum STLType { BLADDER, SKIN, THICKNESS, OXY, DeOXY};
+	enum STLType { BLADDER, SKIN, THICKNESS, OXY, DeOXY, Tumor};
 
 	string triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
 	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type); //string path
 	string findPixelsArePlacedIntoGeometries(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
+
+	string writeTumor(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
+
+
 	void saveGeometryPath(string  filename, STLType type);
 
 	void setMainOutputDirectory(string studyDir) {
@@ -105,6 +109,10 @@ public:
 	string getDeOXYGeometry() {
 		return this->DeOXYGeometry;
 	}
+	
+	string getTumorGeometry() {
+		return this->TumorGeometry;
+	}
 
 	//------------SETTERs----------
 
@@ -129,6 +137,7 @@ private:
 	string skinGeometry;
 	string OXYGeometry;
 	string DeOXYGeometry;
+	string TumorGeometry;
 
 	//functions
 	vector<vector<Point3f>> fix3D(vector<vector<Point2f>> point_cloud);

@@ -236,8 +236,19 @@ namespace EDITProcessor {
 			}
 		 }
 
+
+		 void fixArtifact(EDITCore::CVPoint^ userPoint, List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
+			 string errorMessage = ultr->fixArtifact(cv::Point(round(userPoint->GetX()), round(userPoint->GetY())), listPointsToVectorPoints(bladderPoints));
+
+			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+			 if (response->isSuccessful()) {
+				 response->setData(vectorPointsTOListPoints(ultr->getlumenPoints()));
+			 }
+		 }
+
+
 		 //extract STL
-		 void  extractBladderSTL(List<List<EDITCore::CVPoint^>^>^ bladderPoints, bool fillHoles) {
+		 void extractBladderSTL(List<List<EDITCore::CVPoint^>^>^ bladderPoints, bool fillHoles) {
 			// setDicomTags();
 			 proc->fillHoles = fillHoles;
 			
@@ -399,6 +410,31 @@ namespace EDITProcessor {
 				paths->Add(msclr::interop::marshal_as<System::String^>(proc->getDeOXYGeometry()));
 				response->setData(paths);
 			}
+		 }
+
+
+
+		 //extract bladder
+		 void extractTumor2D(EDITCore::CVPoint^ userPoint, List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints, System::String^ BladderFilePath, System::String^ thicknessFilePath) {
+ 
+			 string errorMessage = ultr->extactTumor2D(cv::Point(round(userPoint->GetX()), round(userPoint->GetY())), listPointsToVectorPoints(thicknessPoints));
+
+			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+			 if (response->isSuccessful()) {
+				 response->setData(vectorPointsTOListPoints(ultr->getTumorBorders()));
+			 }
+		 }
+
+
+		 void extractTumor3D(){
+			 photo->extractTumorPoints(ultr->getTumorImages());
+			 string errorMessage = proc->findPixelsArePlacedIntoGeometries(photo->getSharderPoints_Tumor(), photo->getInterpolatedPoints_Tumor(), process_3D::STLType::Tumor);
+			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+			 if (response->isSuccessful()) {
+				 List<System::String^>^ paths = gcnew List<System::String^>();
+				 paths->Add(msclr::interop::marshal_as<System::String^>(proc->getTumorGeometry()));
+				 response->setData(paths);
+			 }
 		 }
 
 

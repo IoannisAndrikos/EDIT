@@ -315,6 +315,49 @@ string process_3D::findPixelsArePlacedIntoGeometries(vector<vector<vector<Point3
 
 
 
+
+string process_3D::writeTumor(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type) {
+
+	vector<Point3f> final_Points;
+
+	Point3f point1, point2;
+	int con1, con2;
+
+	for (int i = 0; i < sharderPixels.size(); i++) {
+		for (int j = 0; j < sharderPixels[i].size(); j++) {
+
+			final_Points.insert(final_Points.end(), interpolatedPixels[i][j].begin(), interpolatedPixels[i][j].end());
+			
+		}
+	}
+
+	cout << "ok 3" << endl;
+
+	//some free memory
+	vector<vector<vector<Point3f>>>().swap(sharderPixels);
+	vector<vector<vector<Point3f>>>().swap(interpolatedPixels);
+
+
+	String txtFilename = this->outputObjectsDir + separator() + getSTLName(type) + ".txt";
+	ofstream txtfile;
+	txtfile.open(txtFilename);
+	for (int i = 0; i < final_Points.size(); i++) {
+		txtfile << final_Points[i].x << " " << final_Points[i].y << " " << final_Points[i].z << endl;
+	}
+
+	txtfile.close();
+
+	vector<Point3f>().swap(final_Points);
+	//vector<Point3f>().swap(skinGeometry);
+
+	saveGeometryPath(txtFilename, type);
+
+
+	return this->success;
+}
+
+
+
 void process_3D::saveGeometryPath(string  filename, STLType type) {
 
 	switch (type)
@@ -333,6 +376,9 @@ void process_3D::saveGeometryPath(string  filename, STLType type) {
 		break;
 	case process_3D::DeOXY:
 		this->DeOXYGeometry = filename;
+		break;
+	case process_3D::Tumor:
+		this->TumorGeometry = filename;
 		break;
 	default:
 		break;
@@ -358,6 +404,9 @@ string process_3D::getSTLName(STLType type) {
 		break;
 	case process_3D::DeOXY:
 		return "DeOXY";
+		break;
+	case process_3D::Tumor:
+		return "Tumor";
 		break;
 
 	}
