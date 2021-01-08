@@ -222,29 +222,37 @@ namespace EDITProcessor {
 
 
 		 //extract bladder
-		 void extractBladder(int startingFrame, int endingFrame, EDITCore::CVPoint ^userPoint) {
+		 void extractBladder(int startingFrame, int endingFrame, EDITCore::CVPoint ^userPoint, bool fixArtifact) {
 
 			 vector<double> Tags = ultr->getTags();
 			 ultr->imageCenter.x = (Tags[3] - Tags[2]) / 2; //center_x = (Xmax - Xmin)/2
 			 ultr->imageCenter.y = (Tags[5] - Tags[4]) / 2;
 
 			string errorMessage = ultr->processing(startingFrame, endingFrame, cv::Point(round(userPoint->GetX()), round(userPoint->GetY())));
-
 			response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
 			if (response->isSuccessful()) {
-				response->setData(vectorPointsTOListPoints(ultr->getlumenPoints()));
+				if (fixArtifact) {
+					errorMessage = ultr->fixArtifact(cv::Point(round(userPoint->GetX()), round(userPoint->GetY())), ultr->getlumenPoints());
+					response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+					if (response->isSuccessful()) {
+						response->setData(vectorPointsTOListPoints(ultr->getlumenPoints()));
+					}
+				}
+				else {
+					response->setData(vectorPointsTOListPoints(ultr->getlumenPoints()));
+				}
 			}
 		 }
 
 
-		 void fixArtifact(EDITCore::CVPoint^ userPoint, List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
+		/* void fixArtifact(EDITCore::CVPoint^ userPoint, List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
 			 string errorMessage = ultr->fixArtifact(cv::Point(round(userPoint->GetX()), round(userPoint->GetY())), listPointsToVectorPoints(bladderPoints));
 
 			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
 			 if (response->isSuccessful()) {
 				 response->setData(vectorPointsTOListPoints(ultr->getlumenPoints()));
 			 }
-		 }
+		 }*/
 
 
 		 //extract STL
