@@ -257,7 +257,7 @@ string ultrasound::extactTumor2D(Point clickPoint, vector<vector<Point2f>> thick
 			rounded_bladderContoursPoint.push_back(Point(round(lumenPoints[i][j].x), round(lumenPoints[i][j].y)));
 		}
 		fillPoly(lumen, rounded_bladderContoursPoint, Scalar(0, 0, 0));
-		Mat element = getStructuringElement(MORPH_ELLIPSE, Size(10, 10), Point(-1, -1)); // kernel performing drode 
+		Mat element = getStructuringElement(MORPH_RECT, Size(15, 15), Point(-1, -1)); // kernel performing drode 
 		erode(lumen, lumen, element);
 
 		for (int j = 0; j < thickness[i].size(); j++) {

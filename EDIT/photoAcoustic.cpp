@@ -323,9 +323,9 @@ string photoAcoustic::process(int frame, totalSequenceOrCorrecton type) {
 		}
 
 		for (int j = 0; j < thicknessPoints.size(); j++) {
-			if (thicknessPoints[j] == Point2f(0.0, 0.0)) {
+			//if (thicknessPoints[j] == Point2f(0.0, 0.0)) {
 				thicknessPoints[j] = meanThickness[j];
-			}
+			//}
 		}
 
 		if (type == totalSequenceOrCorrecton::TOTAL) {
