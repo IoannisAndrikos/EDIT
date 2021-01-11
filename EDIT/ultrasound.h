@@ -52,7 +52,7 @@ public:
 
 	string processing(int initialFrame, int lastFrame, cv::Point clickPoint); //cropping and filtering //vector<vector<Point2f>>
 
-	string extactTumor2D(Point clickPoint, vector<vector<Point2f>> thickness);
+	string extactTumor2D(Point clickPoint, vector<vector<Point2f>> lumen2DPoints, vector<vector<Point2f>> thickness2DPoints);
 	vector<vector<Point2f>> getTumorBorders();
 
 	string fixArtifact(Point clickPoint, vector<vector<Point2f>> points);

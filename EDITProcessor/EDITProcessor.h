@@ -274,8 +274,6 @@ namespace EDITProcessor {
 		 void extractSkinSTL(List<List<EDITCore::CVPoint^>^>^ bladderPoints, bool fillHoles) {
 			// setDicomTags();
 			 proc->fillHoles = fillHoles;
-			 
-			 proc->fillHoles = fillHoles;
 			 ultr->extractSkinPoints(listPointsToVectorPoints(bladderPoints));
 			 releaseMemory(bladderPoints);
 			
@@ -425,7 +423,9 @@ namespace EDITProcessor {
 		 //extract bladder
 		 void extractTumor2D(EDITCore::CVPoint^ userPoint, List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints, System::String^ BladderFilePath, System::String^ thicknessFilePath) {
  
-			 string errorMessage = ultr->extactTumor2D(cv::Point(round(userPoint->GetX()), round(userPoint->GetY())), listPointsToVectorPoints(thicknessPoints));
+			 string errorMessage = ultr->extactTumor2D(cv::Point(round(userPoint->GetX()), round(userPoint->GetY())), listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints));
+			 releaseMemory(thicknessPoints);
+			 releaseMemory(bladderPoints);
 
 			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
 			 if (response->isSuccessful()) {

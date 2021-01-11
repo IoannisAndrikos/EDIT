@@ -216,13 +216,13 @@ string ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint)
 //-------------------------------------------------------------------------------------------------------
 
 
-string ultrasound::extactTumor2D(Point clickPoint, vector<vector<Point2f>> thickness) {
+string ultrasound::extactTumor2D(Point clickPoint, vector<vector<Point2f>> lumen2DPoints, vector<vector<Point2f>> thickness2DPoints) {
 
 	vector<Mat>().swap(this->tumorImages);
 
 	CImg<unsigned char> embedding;
 
-	for (int i = 0; i < this->lumenPoints.size(); i++) { //initialFrame - 1
+	for (int i = 0; i < thickness2DPoints.size(); i++) { //initialFrame - 1
 
 		String imagePath = String("C:/Users/Legion Y540/desktop/remove_tumor/" + to_string(i + this->initialFrame)) + ".bmp";
 
@@ -253,15 +253,15 @@ string ultrasound::extactTumor2D(Point clickPoint, vector<vector<Point2f>> thick
 		}
 
 		vector<Point>  rounded_bladderContoursPoint, rounded_thicknessContoursPoint;
-		for (int j = 0; j < this->lumenPoints[i].size(); j++) {
-			rounded_bladderContoursPoint.push_back(Point(round(lumenPoints[i][j].x), round(lumenPoints[i][j].y)));
+		for (int j = 0; j < lumen2DPoints[i].size(); j++) {
+			rounded_bladderContoursPoint.push_back(Point(round(lumen2DPoints[i][j].x), round(lumen2DPoints[i][j].y)));
 		}
 		fillPoly(lumen, rounded_bladderContoursPoint, Scalar(0, 0, 0));
 		Mat element = getStructuringElement(MORPH_RECT, Size(15, 15), Point(-1, -1)); // kernel performing drode 
 		erode(lumen, lumen, element);
 
-		for (int j = 0; j < thickness[i].size(); j++) {
-			rounded_thicknessContoursPoint.push_back(Point(round(thickness[i][j].x), round(thickness[i][j].y)));
+		for (int j = 0; j < thickness2DPoints[i].size(); j++) {
+			rounded_thicknessContoursPoint.push_back(Point(round(thickness2DPoints[i][j].x), round(thickness2DPoints[i][j].y)));
 		}
 
 		Mat black = Mat::zeros(lumen.size(), lumen.type());
@@ -360,7 +360,7 @@ string ultrasound::fixArtifact(Point clickPoint, vector<vector<Point2f>> points)
 			rounded_bladder.push_back(Point(round(bladder[j].x), round(bladder[j].y)));
 			rounded_convexBladder.push_back(Point(round(convexBladder[j].x), round(convexBladder[j].y)));
 		}
-		fillPoly(black, rounded_convexBladder, Scalar(255, 255, 255));
+		fillPoly(black, rounded_convexBladder, Scalar(255, 0, 0));
 		fillPoly(black, rounded_bladder, Scalar(0, 0, 0));
 
 
@@ -586,7 +586,7 @@ void ultrasound::extractSkinPoints(vector<vector<Point2f>> bladderPoints) {
 			SkinPolarXY.push_back(Point2f(magnitude.at<Float32>(j), angle.at<Float32>(j)));
 		}
 
-	Mat image = images[imageCount].clone();
+	Mat image = this->images[imageCount].clone();
 	medianBlur(image, image, 9);
 	GaussianBlur(image, image, Size(9, 9), 0);
 	threshold(image, image, 100, 255, THRESH_BINARY);
