@@ -153,7 +153,7 @@ namespace EDITProcessor {
 			photo->setMainOutputDirectory(exam_dir);
 			proc->setMainOutputDirectory(exam_dir);
 
-			setLoggingOnOff(true); //enable logging by default
+			setLoggingOnOff(false); //enable logging by default
 		}
 
 		
