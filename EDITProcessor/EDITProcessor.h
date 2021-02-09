@@ -244,6 +244,25 @@ namespace EDITProcessor {
 			}
 		 }
 
+		 //extract bladder
+		 void extractBladderForUniqueFrame(int frame, List<EDITCore::CVPoint^>^ bladderPoints, bool fixArtifact) {
+			string errorMessage = ultr->recalculate(frame, listPointsToVectorPoints(bladderPoints));
+			releaseMemory(bladderPoints);
+			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+			 if (response->isSuccessful()) {
+				 if (fixArtifact) {
+					 errorMessage = ultr->fixArtifact(frame, ultr->getContourForFix());
+					 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+					 if (response->isSuccessful()) {
+						 response->setData(vectorPointsTOListPoints(ultr->getContourForFix()));
+					 }
+				 }
+				 else {
+					 response->setData(vectorPointsTOListPoints(ultr->getContourForFix()));
+				 }
+				
+			 }
+		 }
 
 		/* void fixArtifact(EDITCore::CVPoint^ userPoint, List<List<EDITCore::CVPoint^>^>^ bladderPoints) {
 			 string errorMessage = ultr->fixArtifact(cv::Point(round(userPoint->GetX()), round(userPoint->GetY())), listPointsToVectorPoints(bladderPoints));

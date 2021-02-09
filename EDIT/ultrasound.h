@@ -51,11 +51,13 @@ public:
 	string exportImages(string dicomPath);
 
 	string processing(int initialFrame, int lastFrame, cv::Point clickPoint); //cropping and filtering //vector<vector<Point2f>>
+	string recalculate(int frame, vector<Point2f> points);
 
 	string extactTumor2D(Point clickPoint, vector<vector<Point2f>> lumen2DPoints, vector<vector<Point2f>> thickness2DPoints);
 	vector<vector<Point2f>> getTumorBorders();
 
 	string fixArtifact(Point clickPoint, vector<vector<Point2f>> points);
+	string fixArtifact(int frame, vector<Point2f> points);
 	
 
 	void finalizeAllBladderContours(vector<vector<Point2f>> points);
@@ -133,6 +135,11 @@ public:
 		return lumenPoints;
 	}
 
+
+	vector<Point2f> getContourForFix() {
+		return contourForFix;
+	}
+
 	vector<Mat> getTumorImages() {
 		return this->tumorImages;
 	}
@@ -181,7 +188,7 @@ private:
 	vector<Point2f> sortBasedEuclideanDistance(vector<Point2f> points);
 	ResultOfProcess centerAndPointsOfContour(Mat processed, vector<Point2f> *points, Point2f *center, cv::Point *highestWhitePixel = &cv::Point(0,0));
 	ResultOfProcess sortUsingPolarCoordinates(vector<Point2f> *p, int iter, Point2f *center, Mat image, int skinDistance);
-	ResultOfProcess sortClockwise(vector<Point2f>* p, Point2f* center, int iter);
+	ResultOfProcess sortClockwise(vector<Point2f>* p, Point2f* center, int iter, bool recalculate = false);
 	int findLongestVector(vector<vector<cv::Point>> vec);
 	Point2f getCenterOfGravity(vector<Point2f> points);
 	Point2f getCenterOfGravity(vector<Point> points);
@@ -208,6 +215,7 @@ private:
 	int initialFrame;
 	int lastFrame;
 	vector<vector<Point2f>> lumenPoints;
+	vector<Point2f> contourForFix;
 	
 	vector<Mat> tumorImages;
 

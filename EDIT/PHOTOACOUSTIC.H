@@ -120,6 +120,8 @@ public:
 	}
 
 	vector<Point2f> getContourForFix() {
+		cout << "KKPP" << contourForFix.size() << endl;
+
 		return this->contourForFix;
 	}
 

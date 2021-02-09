@@ -124,7 +124,6 @@ string ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint)
 
 	this->initialFrame = initialFrame;
 	this->lastFrame = lastFrame;
-	CImg<unsigned char> embedding;
 
 	for (int i = initialFrame; i <= lastFrame; i++) { //initialFrame - 1
 		LoggerMessage(string("Working on Frame: " + to_string(i)));
@@ -212,6 +211,83 @@ string ultrasound::processing(int initialFrame, int lastFrame, Point clickPoint)
 	}
 	return this->success;
 }
+
+string ultrasound::recalculate(int frame, vector<Point2f> points) {
+
+	LoggerMessage(string("Working (Recalculate) on Frame: " + to_string(frame)));
+	Mat lumen;
+	if (applyEqualizeHist) {
+		equalizeHist(this->images[frame], lumen);
+	}
+	else {
+		lumen = this->images[frame].clone();
+	}
+
+	Point2f contourClickPoint = getCenterOfMass(points);
+
+	CImg<double>  imgC = *cvImgToCImg(lumen);
+
+	//in the first as well as in the final 5 frames we apply circle levelset image and 200 repeats
+	CImg<unsigned char> embedding = circle_levelset(imgC.height(), imgC.width(), { (int)contourClickPoint.y , (int)contourClickPoint.x }, this->levelsetSize);
+	morphsnakes::MorphACWE<double, 2> macwe(cimg2ndimage(embedding), cimg2ndimage(imgC), this->smoothing, this->lamda1, this->lamda2);
+	for (int i = 0; i < 200; ++i) {
+		macwe.step();
+	}
+	//Back to Mat
+	lumen = CImgtoCvImg((embedding * 255));
+
+
+	//Canny(lumen, lumen, 0, 0, 3);
+   //threshold(lumen, lumen, 100, 255, THRESH_BINARY);
+
+	//---------------------------------------------Keep the longest contour--------------------------------------
+	threshold(lumen, lumen, 100, 255, THRESH_BINARY);
+	vector<vector<Point>> contours;
+	vector<Vec4i> hierarchy;
+	Canny(lumen, lumen, 0, 0, 3);//with or without, explained later.
+	findContours(lumen, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+
+	Mat drawing = Mat::zeros(lumen.size(), lumen.type());
+
+	Scalar color(255, 0, 0);
+
+	//Make sure that the longest contour is the 0
+	drawContours(drawing, contours, findLongestVector(contours), color);
+
+	lumen = drawing;
+
+	//find white pixels and calculte their center and store points into vector!
+	vector<Point2f>* lumenPoints = new vector<Point2f>();
+	Point2f* lumenCenter = new Point2f();
+	Point* highestWhitePixel = new Point();
+
+	try {
+		ResultOfProcess poitsWereFound = centerAndPointsOfContour(lumen, lumenPoints, lumenCenter, highestWhitePixel);
+
+		if (poitsWereFound == ResultOfProcess::SUCCESS) {
+			ResultOfProcess poitsWereSorted = sortClockwise(lumenPoints, lumenCenter, frame, true);
+			if (poitsWereSorted == ResultOfProcess::FAILURE) {
+				return warningMessages::firtFrameSegmentationFailed;
+			}
+		}
+		else {
+			return warningMessages::firtFrameSegmentationFailed;
+		}
+	}
+	catch (exception e) {
+		return warningMessages::frameSegmentationFailed + to_string(frame);
+	}
+
+	vector<Point2f>().swap(*lumenPoints);
+	vector<vector<Point>>().swap(contours);
+	vector<Vec4i>().swap(hierarchy);
+	drawing.release();
+	lumen.release();
+	
+	return this->success;
+}
+
+
 
 //-------------------------------------------------------------------------------------------------------
 
@@ -324,8 +400,7 @@ vector<vector<Point2f>> ultrasound::getTumorBorders() {
 	return tumorBorders;
 }
 
-
-
+//for all sequence
 string ultrasound::fixArtifact(Point clickPoint, vector<vector<Point2f>> points) {
 
 	vector<vector<Point2f>>().swap(this->lumenPoints);
@@ -334,7 +409,6 @@ string ultrasound::fixArtifact(Point clickPoint, vector<vector<Point2f>> points)
 
 	this->initialFrame = initialFrame;
 	this->lastFrame = lastFrame;
-	CImg<unsigned char> embedding;
 
 	for (int i = initialFrame; i <= lastFrame; i++) { //initialFrame - 1
 		LoggerMessage(string("Working on Frame: " + to_string(i)));
@@ -486,6 +560,142 @@ string ultrasound::fixArtifact(Point clickPoint, vector<vector<Point2f>> points)
 	}
 	return this->success;
 }
+
+//for one frame
+string ultrasound::fixArtifact(int frame, vector<Point2f> points) {
+
+	LoggerMessage(string("Working (Recalculate) on Frame: " + to_string(frame)));
+	Mat lumen;
+	if (applyEqualizeHist) {
+		equalizeHist(this->images[frame], lumen);
+	}
+	else {
+		lumen = this->images[frame].clone();
+	}
+
+	//TO DO 
+	//-------------------------------------------
+	vector<Point2f> bladder, convexBladder;
+	bladder = points;
+	Point2f center = getCenterOfGravity(bladder);
+	convexHull(bladder, convexBladder, true, false);
+	//convexBladder = interpolateConvexPoints(convexBladder, interpolationMethod::AKIMA);
+	convexBladder = smoothContour(convexBladder, 200, true);
+	Mat black = Mat::zeros(lumen.size(), lumen.type());
+	vector<Point>  rounded_bladder, rounded_convexBladder;
+	for (int j = 0; j < bladder.size(); j++) {
+		rounded_bladder.push_back(Point(round(bladder[j].x), round(bladder[j].y)));
+		rounded_convexBladder.push_back(Point(round(convexBladder[j].x), round(convexBladder[j].y)));
+	}
+	fillPoly(black, rounded_convexBladder, Scalar(255, 0, 0));
+	fillPoly(black, rounded_bladder, Scalar(0, 0, 0));
+
+
+	vector<vector<Point>> artifact_Contours;
+	vector<Vec4i> artifact_hierarchy;
+	findContours(black, artifact_Contours, artifact_hierarchy, 3, 2, Point(0, 0));
+
+
+	vector<Point2f> centers;
+
+	for (int i = 0; i < artifact_Contours.size(); i++) {
+		centers.push_back(getCenterOfGravity(artifact_Contours[i]));
+	}
+
+	transform(centers.begin(), centers.end(), centers.begin(), std::bind2nd(std::minus<Point2f>(), center));
+	Mat magnitude, angle;
+	Mat xpts(centers.size(), 1, CV_32F, &centers.at(0).x, 2 * sizeof(float));
+	Mat ypts(centers.size(), 1, CV_32F, &centers.at(0).y, 2 * sizeof(float));
+
+	double degrees;
+
+	fillPoly(lumen, rounded_bladder, Scalar(0, 0, 0));
+
+	cartToPolar(xpts, ypts, magnitude, angle);
+	vector<Point2f> polarContourCenters;
+	for (int i = 0; i < centers.size(); i++) {
+		polarContourCenters.push_back(Point2f(magnitude.at<float>(i), angle.at<float>(i)));
+		degrees = 180 * polarContourCenters[i].y / CV_PI;
+
+		if (degrees > 220 && degrees < 320) {
+			fillPoly(lumen, artifact_Contours[i], Scalar(0, 0, 0));
+		}
+	}
+
+	vector<Point2f>().swap(bladder);
+	vector<Point2f>().swap(convexBladder);
+	vector<vector<Point>>().swap(artifact_Contours);
+	vector<Vec4i>().swap(artifact_hierarchy);
+	vector<Point>().swap(rounded_bladder);
+	vector<Point>().swap(rounded_convexBladder);
+	black.release();
+	magnitude.release();
+	angle.release();
+	xpts.release();
+	ypts.release();
+	//-------------------------------------------
+
+
+	CImg<double>  imgC = *cvImgToCImg(lumen);
+
+	Point2f clickPointFrame = getCenterOfMass(points);
+
+	//Morphological ACWE
+	//in the first as well as in the final 5 frames we apply circle levelset image and 200 repeats
+	CImg<unsigned char> embedding = circle_levelset(imgC.height(), imgC.width(), { (int)clickPointFrame.y , (int)clickPointFrame.x }, this->levelsetSize);
+	morphsnakes::MorphACWE<double, 2> macwe(cimg2ndimage(embedding), cimg2ndimage(imgC), this->smoothing, this->lamda1, this->lamda2);
+	for (int i = 0; i < 200; ++i) {
+		macwe.step();
+	}
+	//Back to Mat
+	lumen = CImgtoCvImg((embedding * 255));
+			
+	//Canny(lumen, lumen, 0, 0, 3);
+    //threshold(lumen, lumen, 100, 255, THRESH_BINARY);
+
+	//---------------------------------------------Keep the longest contour--------------------------------------
+	threshold(lumen, lumen, 100, 255, THRESH_BINARY);
+	vector<vector<Point>> contours;
+	vector<Vec4i> hierarchy;
+	Canny(lumen, lumen, 0, 0, 3);//with or without, explained later.
+	findContours(lumen, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+
+	Mat drawing = Mat::zeros(lumen.size(), lumen.type());
+
+	Scalar color(255, 0, 0);
+
+	//Make sure that the longest contour is the 0
+	drawContours(drawing, contours, findLongestVector(contours), color);
+
+	lumen = drawing;
+
+	//find white pixels and calculte their center and store points into vector!
+	vector<Point2f>* lumenPoints = new vector<Point2f>();
+	Point2f* lumenCenter = new Point2f();
+	Point* highestWhitePixel = new Point();
+
+	try {
+		ResultOfProcess poitsWereFound = centerAndPointsOfContour(lumen, lumenPoints, lumenCenter, highestWhitePixel);
+
+		if (poitsWereFound == ResultOfProcess::SUCCESS) {
+			ResultOfProcess poitsWereSorted = sortClockwise(lumenPoints, lumenCenter, frame, true);
+			if (poitsWereSorted == ResultOfProcess::FAILURE) {
+				return warningMessages::frameSegmentationFailed;
+			}
+		}
+	}
+	catch (exception e) {
+		return warningMessages::frameSegmentationFailed;
+	}
+
+	vector<Point2f>().swap(*lumenPoints);
+	vector<vector<Point>>().swap(contours);
+	vector<Vec4i>().swap(hierarchy);
+	drawing.release();
+	lumen.release();
+	return this->success;
+}
+
 
 
 
@@ -731,7 +941,7 @@ ultrasound::ResultOfProcess ultrasound::sortUsingPolarCoordinates(vector<Point2f
 }
 
 
-ultrasound::ResultOfProcess ultrasound::sortClockwise(vector<Point2f>* p, Point2f* center, int iter) {
+ultrasound::ResultOfProcess ultrasound::sortClockwise(vector<Point2f>* p, Point2f* center, int iter, bool recalculate) {
 
 	transform(p->begin(), p->end(), p->begin(), std::bind2nd(std::minus<Point2f>(), *center));
 
@@ -795,18 +1005,25 @@ ultrasound::ResultOfProcess ultrasound::sortClockwise(vector<Point2f>* p, Point2
 	}
 
 	vector<Point2f> smoothed = smoothContour(pp, 0, true); //num_spline = 50;
+	transform(smoothed.begin(), smoothed.end(), smoothed.begin(), std::bind2nd(std::plus<Point2f>(), *center));
 
-	if (!smoothed.empty()) {
-		transform(smoothed.begin(), smoothed.end(), smoothed.begin(), std::bind2nd(std::plus<Point2f>(), *center));
-		this->lumenPoints.push_back(smoothed);
-		this->levelsetSize = round(smoothed.size() / 3);//-----> re-estimate levelsetSize
+	if (!recalculate) {
+		if (!smoothed.empty()) {
+			this->lumenPoints.push_back(smoothed);
+			this->levelsetSize = round(smoothed.size() / 3);//-----> re-estimate levelsetSize
+		}
+		else if (iter > this->initialFrame) {
+			this->lumenPoints.push_back(this->lumenPoints.back());
+		}
+		else if (iter == this->initialFrame) {
+			return ResultOfProcess::FAILURE;
+		}
 	}
-	else if (iter > this->initialFrame) {
-		this->lumenPoints.push_back(this->lumenPoints.back());
+	else {
+		vector<Point2f>().swap(this->contourForFix);
+		smoothed.swap(contourForFix);
 	}
-	else if (iter == this->initialFrame) {
-		return ResultOfProcess::FAILURE;
-	}
+	
 
 	LoggerMessage("Bladder borders were detected successfully!");
 
