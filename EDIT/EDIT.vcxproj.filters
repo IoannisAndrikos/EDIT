@@ -96,6 +96,9 @@
     <ClCompile Include="ALGLIB_src\statistics.cpp">
       <Filter>Source Files\ALGLIB</Filter>
     </ClCompile>
+    <ClCompile Include="tumor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CImg.h">
@@ -187,6 +190,9 @@
     </ClInclude>
     <ClInclude Include="ALGLIB_src\stdafx.h">
       <Filter>Header Files\ALGLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="tumor.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

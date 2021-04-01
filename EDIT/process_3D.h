@@ -57,9 +57,9 @@ public:
 	process_3D(); //constructor
 	~process_3D(); //destructor
 
-	enum STLType { BLADDER, SKIN, THICKNESS, OXY, DeOXY, Tumor};
+	enum STLType { BLADDER, SKIN, THICKNESS, OXY, DeOXY, TUMOR};
 
-	string triangulation(vector<vector<Point2f>> point_cloud, STLType type); //string path
+	string triangulation(vector<vector<Point2f>> point_cloud, STLType type, int frame = 0); //string path
 	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type); //string path
 	string findPixelsArePlacedIntoGeometries(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
 

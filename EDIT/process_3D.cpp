@@ -77,28 +77,24 @@ vector<vector<Point3f>> process_3D::fix3D(vector<vector<Point2f>> point_cloud) {
 
 
 
-string process_3D::triangulation(vector<vector<Point2f>> point_cloud, STLType type) {
+string process_3D::triangulation(vector<vector<Point2f>> point_cloud, STLType type, int frame) {
+
 	if (point_cloud.size() < 2) {
 		return warningMessages::cannotProduce3D;
 	}
-
 
 	vtkSmartPointer<vtkPoints> points = vtkSmartPointer< vtkPoints >::New();
 	for (int i = 0; i < point_cloud.size(); i++) {
 		for (int j = 0; j < point_cloud[i].size(); j++) {
 			points->InsertNextPoint((point_cloud[i][j].x - this->imageCenter.x) * this->xspace,
 				(point_cloud[i][j].y - this->imageCenter.y) * this->yspace,
-				i * this->distanceBetweenFrames);
+				frame * this->distanceBetweenFrames);
 		}
+		frame++;
 	}
 
 
-
-
-
 	vtkSmartPointer<vtkCellArray> triangles = vtkSmartPointer<vtkCellArray>::New();
-
-	
 
 	int ss = point_cloud[0].size();
 	int k = ss;
@@ -134,7 +130,7 @@ string process_3D::triangulation(vector<vector<Point2f>> point_cloud, STLType ty
 	poly->SetPolys(triangles);
 	poly->SetPoints(points);
 
-	// write the polydata to a file
+	//// write the polydata to a file
 	//string filename_stl = this->outputObjectsDir + "/no_smoothed_" + getSTLName(type) + ".stl";
 	//vtkSmartPointer<vtkSTLWriter> writer = vtkSmartPointer<vtkSTLWriter>::New();
 	//writer->SetFileName(filename_stl.c_str());
@@ -377,7 +373,7 @@ void process_3D::saveGeometryPath(string  filename, STLType type) {
 	case process_3D::DeOXY:
 		this->DeOXYGeometry = filename;
 		break;
-	case process_3D::Tumor:
+	case process_3D::TUMOR:
 		this->TumorGeometry = filename;
 		break;
 	default:
@@ -405,7 +401,7 @@ string process_3D::getSTLName(STLType type) {
 	case process_3D::DeOXY:
 		return "DeOXY";
 		break;
-	case process_3D::Tumor:
+	case process_3D::TUMOR:
 		return "Tumor";
 		break;
 

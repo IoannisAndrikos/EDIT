@@ -882,8 +882,10 @@ vector<Point2f>  photoAcoustic::findOppositePoints(vector<Point2f> p) {
 bool photoAcoustic::IsClockwise(vector<Point2f> points)
 {	
 	/*double sum = 0.0;
+	int j = points.size() - 1;
 	for (int i = 0; i < points.size()-1; i++) {
-		sum += (points[i+1].x - points[i].x) * (points[i + 1].y + points[i].y);
+		sum += (points[j].x + points[i].x) * (points[j].y - points[i].y);
+		j = i;
 	}
 	return sum > 0.0;*/
 

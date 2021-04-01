@@ -9,6 +9,7 @@
 #include "../EDIT/ultrasound.h"
 #include "../EDIT/process_3D.h"
 #include "../EDIT/photoAcoustic.h"
+#include "../EDIT/tumor.h"
 //
 #include <vtk-9.0/vtkSmartPointer.h>
 #include <vtk-9.0/vtkPolyData.h>
@@ -40,6 +41,7 @@ namespace EDITProcessor {
 		ultrasound *ultr;
 		process_3D *proc;
 		photoAcoustic *photo;
+		tumor* tm;
 		EDITResponse ^response;
 		//----OBJECTS-----
 		 
@@ -69,6 +71,33 @@ namespace EDITProcessor {
 			}
 			return BladderPoints;
 		}
+
+		vector<vector<vector<Point2f>>> listPointsToVectorPoints(List<List<List<EDITCore::CVPoint^>^>^> ^listPoints) {
+			vector<vector<vector<Point2f>>> vectorPoints;
+			for (int k = 0; k < listPoints->Count; k++) {
+				vector<Point2f> contour_k;
+				List<List<EDITCore::CVPoint^>^>^ listcontour_k = gcnew List<List<EDITCore::CVPoint^>^>();
+				listcontour_k = listPoints[k];
+				vector<vector<Point2f>> vectorPoints_k;
+
+				for (int i = 0; i < listcontour_k->Count; i++) {
+					vector<Point2f> contour;
+					List<EDITCore::CVPoint^>^ listcontour = gcnew List<EDITCore::CVPoint^>();
+					listcontour = listcontour_k[i];
+					for (int j = 0; j < listcontour->Count; j++) {
+
+						contour.push_back(Point2f(listcontour[j]->GetX(), listcontour[j]->GetY()));
+					}
+					vectorPoints_k.push_back(contour);
+				}
+
+				vectorPoints.push_back(vectorPoints_k);
+
+				
+			}
+			return vectorPoints;
+		}
+
 
 
 		vector<vector<Point2f>> listPointsToVectorPoints(List<List<EDITCore::CVPoint^>^> ^listPoints) {
@@ -125,6 +154,7 @@ namespace EDITProcessor {
 			ultr = new ultrasound();
 			photo = new photoAcoustic();
 			proc = new process_3D();
+			tm = new tumor();
 			response = EDITResponse::Instance;
 		}
 
@@ -452,8 +482,7 @@ namespace EDITProcessor {
 			 }
 		 }
 
-
-		 void extractTumor3D(){
+		/* void extractTumor3D(){
 			 photo->extractTumorPoints(ultr->getTumorImages());
 			 string errorMessage = proc->findPixelsArePlacedIntoGeometries(photo->getSharderPoints_Tumor(), photo->getInterpolatedPoints_Tumor(), process_3D::STLType::Tumor);
 			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
@@ -461,6 +490,24 @@ namespace EDITProcessor {
 				 List<System::String^>^ paths = gcnew List<System::String^>();
 				 paths->Add(msclr::interop::marshal_as<System::String^>(proc->getTumorGeometry()));
 				 response->setData(paths);
+			 }
+		 }*/
+		 
+
+		 void extractTumor3D(List<List<List<EDITCore::CVPoint^>^>^>^ tumorPoints, int startingFrame){
+			 tm->sortClockwise(listPointsToVectorPoints(tumorPoints));
+			 cout << tm->getTumorPoints().size() << endl;
+			 cout << tm->getTumorPoints().size() << endl;
+			 for (int i = 0; i < tm->getTumorPoints().size(); i++) {
+				 cout << tm->getTumorPoints()[i].size() << endl;
+			 }
+
+			 
+			 string errorMessage = proc->triangulation(tm->getTumorPoints(), process_3D::STLType::TUMOR, startingFrame);
+			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+			 if (response->isSuccessful()) {
+				 string STLPath = proc->getTumorGeometry();
+				 response->setData(msclr::interop::marshal_as<System::String^>(STLPath));
 			 }
 		 }
 

@@ -152,6 +152,7 @@
       <SupportJustMyCode>true</SupportJustMyCode>
       <BrowseInformation>true</BrowseInformation>
       <ExceptionHandling>Async</ExceptionHandling>
+      <LanguageStandard>Default</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -187,6 +188,7 @@
     <ClCompile Include="photoAcoustic.cpp" />
     <ClCompile Include="process_3D.cpp" />
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="tumor.cpp" />
     <ClCompile Include="ultrasound.cpp" />
     <ClCompile Include="Vector.cpp" />
   </ItemGroup>
@@ -219,6 +221,7 @@
     <ClInclude Include="spline.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="tumor.h" />
     <ClInclude Include="ultrasound.h" />
     <ClInclude Include="Vector.h" />
   </ItemGroup>
