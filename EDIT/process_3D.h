@@ -61,8 +61,10 @@ public:
 
 	string triangulation(vector<vector<Point2f>> point_cloud, STLType type, int frame = 0); //string path
 	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type); //string path
-	string findPixelsArePlacedIntoGeometries(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
 
+	string trimTumorObject(string bladderSTLPath, string thicknessSTLPath);
+
+	string findPixelsArePlacedIntoGeometries(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
 	string writeTumor(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type);
 
 

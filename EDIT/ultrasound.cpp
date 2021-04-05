@@ -894,9 +894,9 @@ ultrasound::ResultOfProcess ultrasound::sortUsingPolarCoordinates(vector<Point2f
 
 	sort(polarXY.begin(), polarXY.end(), sortBasedYCoordinate);
 
-	for (int i = 0; i < polarXY.size(); i++) {
+	/*for (int i = 0; i < polarXY.size(); i++) {
 		cout << "Angle =  " << polarXY[i].y * 180 / CV_PI << " R = " << polarXY[i].x << endl;
-	}
+	}*/
 
 
 	Mat mag(polarXY.size(), 1, CV_32F, &polarXY[0].x, 2 * sizeof(float));

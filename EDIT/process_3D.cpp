@@ -234,6 +234,44 @@ string process_3D::surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLTy
 }
 
 
+string process_3D::trimTumorObject(string bladderSTLPath, string thicknessSTLPath) {
+	try
+	{
+		vtkSmartPointer <vtkSTLReader> readerBladder = vtkSmartPointer<vtkSTLReader>::New();
+		readerBladder->SetFileName(bladderSTLPath.c_str());
+		readerBladder->Update();
+
+		/*vtkSmartPointer <vtkSTLReader> readerThickness = vtkSmartPointer<vtkSTLReader>::New();
+		readerThickness->SetFileName((this->thicknessGeometry).c_str());
+		readerThickness->Update();*/
+
+		vtkSmartPointer <vtkSTLReader> readerTumor = vtkSmartPointer<vtkSTLReader>::New();
+		readerTumor->SetFileName((this->TumorGeometry).c_str());
+		readerTumor->Update();
+
+		vtkSmartPointer<vtkBooleanOperationPolyDataFilter> booleanOperationFilter = vtkSmartPointer<vtkBooleanOperationPolyDataFilter>::New();
+		booleanOperationFilter->SetInputConnection(0, readerBladder->GetOutputPort());
+		booleanOperationFilter->SetInputConnection(1, readerTumor->GetOutputPort());
+		booleanOperationFilter->SetOperationToDifference();
+		booleanOperationFilter->Update();
+
+		string filename_stl = this->outputObjectsDir + separator() + "smoothed_" + getSTLName(STLType::TUMOR) + ".stl";
+
+		vtkSmartPointer<vtkSTLWriter> writer = vtkSmartPointer<vtkSTLWriter>::New();
+		writer->SetFileName(filename_stl.c_str());
+		writer->SetInputConnection(booleanOperationFilter->GetOutputPort());
+		writer->Write();
+
+		saveGeometryPath(filename_stl, STLType::TUMOR);
+	}
+	catch (Exception e) {
+		return warningMessages::problemDuringTriangulation;
+	}
+	return this->success;
+}
+
+
+
 string process_3D::findPixelsArePlacedIntoGeometries(vector<vector<vector<Point3f>>> sharderPixels, vector<vector<vector<Point3f>>> interpolatedPixels, STLType type) {
 
 	vector<Point3f> final_Points;

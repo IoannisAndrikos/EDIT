@@ -128,6 +128,12 @@ namespace EDITProcessor {
 			return vectorPoints;
 		}
 
+
+		string getBackendString(System::String^ str) {
+			return msclr::interop::marshal_as<std::string>(str);
+		}
+
+
 		void releaseMemory(List<List<EDITCore::CVPoint^>^>^ listPoints) {
 			listPoints->Clear();
 		}
@@ -494,16 +500,10 @@ namespace EDITProcessor {
 		 }*/
 		 
 
-		 void extractTumor3D(List<List<List<EDITCore::CVPoint^>^>^>^ tumorPoints, int startingFrame){
+		 void extractTumor3D(List<List<List<EDITCore::CVPoint^>^>^>^ tumorPoints, int startingFrame, System::String^ bladderSTLPath, System::String^ ThicknessSTLPath){
 			 tm->sortClockwise(listPointsToVectorPoints(tumorPoints));
-			 cout << tm->getTumorPoints().size() << endl;
-			 cout << tm->getTumorPoints().size() << endl;
-			 for (int i = 0; i < tm->getTumorPoints().size(); i++) {
-				 cout << tm->getTumorPoints()[i].size() << endl;
-			 }
-
-			 
 			 string errorMessage = proc->triangulation(tm->getTumorPoints(), process_3D::STLType::TUMOR, startingFrame);
+			 errorMessage = proc->trimTumorObject(getBackendString(bladderSTLPath), getBackendString(ThicknessSTLPath));
 			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
 			 if (response->isSuccessful()) {
 				 string STLPath = proc->getTumorGeometry();
