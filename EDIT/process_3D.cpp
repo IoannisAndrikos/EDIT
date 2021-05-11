@@ -411,6 +411,8 @@ void process_3D::saveGeometryPath(string  filename, STLType type) {
 	case process_3D::DeOXY:
 		this->DeOXYGeometry = filename;
 		break;
+	case process_3D::GNR:
+		this->GNRGeometry = filename;
 	case process_3D::TUMOR:
 		this->TumorGeometry = filename;
 		break;
@@ -439,6 +441,8 @@ string process_3D::getSTLName(STLType type) {
 	case process_3D::DeOXY:
 		return "DeOXY";
 		break;
+	case process_3D::GNR:
+		return "GNR";
 	case process_3D::TUMOR:
 		return "Tumor";
 		break;

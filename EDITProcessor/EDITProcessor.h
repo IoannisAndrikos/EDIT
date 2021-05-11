@@ -391,6 +391,28 @@ namespace EDITProcessor {
 			 }
 		 }
 
+
+		 //export photaccoustic images
+		 void exportGNRImages(System::String^ dicomFile) {
+			 string Dicom_file = msclr::interop::marshal_as<std::string>(dicomFile);
+			 string errorMessage = photo->exportGNRImages(Dicom_file); // 1
+			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+			 if (response->isSuccessful()) {
+				 vector<double> tags = photo->getTags();
+				 //Pixel Spacing
+				 response->addNumericData(tags[0] * 10);
+				 response->addNumericData(tags[1] * 10);
+				 //image size
+				 response->addNumericData(tags[3] - tags[2]);
+				 response->addNumericData(tags[5] - tags[4]);
+				 releaseMemory(tags);
+				 string outputimagesDir = photo->getOutputGNRImagesDir();
+				 response->setData(msclr::interop::marshal_as<System::String^>(outputimagesDir));
+			 }
+		 }
+
+
+
 		 void setPhotoAcousticSegmentationConfigurations(double minThickness, double maxThickness, bool bigTumor) {
 			 photo->minThickness = minThickness;
 			 photo->maxThickness = maxThickness;
@@ -474,6 +496,18 @@ namespace EDITProcessor {
 		 }
 
 
+		 void extractGNRPoints(List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints, System::String^ BladderFilePath, System::String^ thicknessFilePath) {
+			 proc->saveGeometryPath(msclr::interop::marshal_as<std::string>(BladderFilePath), process_3D::STLType::BLADDER);
+			 proc->saveGeometryPath(msclr::interop::marshal_as<std::string>(thicknessFilePath), process_3D::STLType::THICKNESS);
+
+			 photo->extractOXYandDeOXYPoints(listPointsToVectorPoints(bladderPoints), listPointsToVectorPoints(thicknessPoints), photoAcoustic::Point3DType::GNR);
+			 string errorMessage = proc->findPixelsArePlacedIntoGeometries(photo->getSharderPoints(), photo->getInterpolatedPoints(), process_3D::STLType::GNR);
+	
+			 response->setSuccessOrFailure(msclr::interop::marshal_as<System::String^>(errorMessage));
+			 if (response->isSuccessful()) {
+				 response->setData(msclr::interop::marshal_as<System::String^>(proc->getGNRGeometry()));
+			 }
+		 }
 
 		 //extract bladder
 		 void extractTumor2D(EDITCore::CVPoint^ userPoint, List<List<EDITCore::CVPoint^>^>^ bladderPoints, List<List<EDITCore::CVPoint^>^>^ thicknessPoints, System::String^ BladderFilePath, System::String^ thicknessFilePath) {

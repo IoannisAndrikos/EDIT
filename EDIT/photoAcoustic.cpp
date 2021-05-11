@@ -30,6 +30,10 @@ void photoAcoustic::creatDirectories() {
 	_mkdir(outputDeOXYImagesDir.c_str());
 
 
+	this->outputGNRImagesDir = studyDir + separator() + "GNR_images";
+	_mkdir(outputGNRImagesDir.c_str());
+
+
 	this->outputSegmentedImagesDir = studyDir + separator() + "photoacoustic_segmented_images";
 	_mkdir(outputSegmentedImagesDir.c_str());
 
@@ -114,6 +118,46 @@ string photoAcoustic::exportDeOXYImages(string dicomPath) {
 
 	return this->success;
 }
+
+
+string photoAcoustic::exportGNRImages(string dicomPath) {
+
+	if (experimental::filesystem::path(dicomPath).filename().extension().generic_string() != ".dcm") {
+		return warningMessages::cannotReadTheDicomFile;
+	}
+
+	this->dicomPath = dicomPath;
+	string nameAndExt = experimental::filesystem::path(dicomPath).filename().generic_string();
+
+	size_t lastindex = nameAndExt.find_last_of(".");
+	this->filename = nameAndExt.substr(0, lastindex);
+	//create dir for all outputs
+
+
+	wstring dcm_str(dicomPath.length(), L' ');
+	copy(dicomPath.begin(), dicomPath.end(), dcm_str.begin());
+
+	//clear folder of images
+	for (const auto& entry : std::experimental::filesystem::directory_iterator(this->outputGNRImagesDir))
+		std::experimental::filesystem::remove_all(entry.path());
+	//clear memory of images
+	vector<Mat>().swap(GNRimages);
+
+	CDicomReader* reader = new CDicomReader();
+	this->tags = reader->GetDicomInfo(dcm_str.c_str()); //read dicom tags
+	if (this->tags.size() < 6) {
+		return warningMessages::cannotGetAllNecessaryDicomTags;
+	}
+	this->GNRimages = reader->dcmimage_Mat(dcm_str.c_str(), this->outputGNRImagesDir, tags[2], tags[3], tags[4], tags[5], CDicomReader::ImageChannel::GREEN);
+	if (this->GNRimages.size() == 0) {
+		return warningMessages::cannotReadTheDicomFile;
+	}
+
+	reader->~CDicomReader();
+
+	return this->success;
+}
+
 
 
 string photoAcoustic::thicknessExtraction(int frame) {
@@ -377,6 +421,9 @@ void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderCont
 		else if (type == Point3DType::DeOXY) {
 			imageFrameB = this->deOXYimages[i + 1 + this->initialFrame];
 		}
+		else if (type == Point3DType::GNR) {
+			imageFrameB = this->GNRimages[i + 1 + this->initialFrame];
+		}
 
 		vector<Point3f> Frame1Points3D;
 		if (i == 0) {
@@ -386,6 +433,9 @@ void photoAcoustic::extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderCont
 			}
 			else if (type == Point3DType::DeOXY) {
 				imageFrameA = this->deOXYimages[i + this->initialFrame];
+			}
+			else if (type == Point3DType::GNR) {
+				imageFrameA = this->GNRimages[i + this->initialFrame];
 			}
 			bladderContours[i] = smoothContour(bladderContours[i], 100);
 			thicknessContours[i] = smoothContour(thicknessContours[i], 100);

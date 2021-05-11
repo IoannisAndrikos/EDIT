@@ -57,7 +57,7 @@ public:
 	process_3D(); //constructor
 	~process_3D(); //destructor
 
-	enum STLType { BLADDER, SKIN, THICKNESS, OXY, DeOXY, TUMOR};
+	enum STLType { BLADDER, SKIN, THICKNESS, OXY, DeOXY, GNR, TUMOR};
 
 	string triangulation(vector<vector<Point2f>> point_cloud, STLType type, int frame = 0); //string path
 	string surface_smoothing(vtkSmartPointer<vtkPolyData> surface, STLType type); //string path
@@ -112,6 +112,10 @@ public:
 		return this->DeOXYGeometry;
 	}
 	
+	string getGNRGeometry() {
+		return this->GNRGeometry;
+	}
+
 	string getTumorGeometry() {
 		return this->TumorGeometry;
 	}
@@ -138,6 +142,7 @@ private:
 	string thicknessGeometry;
 	string skinGeometry;
 	string OXYGeometry;
+	string GNRGeometry;
 	string DeOXYGeometry;
 	string TumorGeometry;
 

@@ -44,11 +44,12 @@ public:
 	photoAcoustic(); //constructor
 	~photoAcoustic(); //destructor
 
-	enum Point3DType { OXY, DeOXY };
+	enum Point3DType { OXY, DeOXY, GNR };
 	enum tumorSize { BIG, SMALL };
 
 	string exportOXYImages(string dicomPath);
 	string exportDeOXYImages(string dicomPath);
+	string exportGNRImages(string dicomPath);
 	string thicknessExtraction(int frame = 0); //frame = 0 means that the process will be performed for all photoAcoustic sequenence
 	void finalizeAllThicknessContours(vector<vector<Point2f>> points);
 	void extractOXYandDeOXYPoints(vector<vector<Point2f>> bladderContours, vector<vector<Point2f>> thicknessContours, Point3DType type);
@@ -70,6 +71,12 @@ public:
 		return outputDeOXYImagesDir;
 	}
 
+
+	string getOutputGNRImagesDir() {
+		return outputGNRImagesDir;
+	}
+
+
 	string getStudyDir() {
 		return studyDir;
 	}
@@ -80,6 +87,10 @@ public:
 	
 	vector<Mat> getdeOXYImages() {
 		return deOXYimages;
+	}
+
+	vector<Mat> getGNRImages() {
+		return GNRimages;
 	}
 
 	Mat getIthImage(int i) {
@@ -256,12 +267,14 @@ private:
 	string studyDir;
 	string outputOXYImagesDir;
 	string outputDeOXYImagesDir;
+	string outputGNRImagesDir;
 	string outputSegmentedImagesDir;
 	string outputPointsDir;
 	string outputPath;
 	string filename;
 	vector<Mat> OXYimages;
 	vector<Mat> deOXYimages;
+	vector<Mat> GNRimages;
 	vector<vector<Point3f>> OXYPoints, DeOXYPoints;
 	vector<Point3f> alreadProcessedFramePoints3D;
 	vector<vector<Point3f>> notSharderPoints;
